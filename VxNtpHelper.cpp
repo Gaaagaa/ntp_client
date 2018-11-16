@@ -333,8 +333,8 @@ x_uint64_t ntp_time_value(x_ntp_time_context_t * xtm_context)
  * @brief 转换（以 100纳秒 为单位的）时间值（1970年1月1日到现在的时间）
  *        为具体的时间描述信息（即 x_ntp_time_context_t）。
  *
- * @param [in ] xut_time  : 时间值（1970年1月1日到现在的时间）。
- * @param [out] xtime_ptr : 操作成功返回的时间描述信息。
+ * @param [in ] xut_time    : 时间值（1970年1月1日到现在的时间）。
+ * @param [out] xtm_context : 操作成功返回的时间描述信息。
  *
  * @return x_bool_t
  *         - 成功，返回 X_TRUE；
@@ -675,7 +675,7 @@ static x_void_t ntp_hton_packet(x_ntp_packet_t * xnpt_nptr)
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址）。
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 超时时间（单位 毫秒）。
- * @param [in ] xnpt_rptr : 操作成功返回的应答信息。
+ * @param [out] xnpt_rptr : 操作成功返回的应答信息。
  *
  * @return x_int32_t
  *         - 成功，返回 0；
@@ -803,7 +803,7 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址） 或 域名（如 3.cn.pool.ntp.org）。
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
- * @param [in ] xut_timev : 操作成功返回的应答时间值（以 100纳秒 为单位，1970年1月1日到现在的时间）。
+ * @param [out] xut_timev : 操作成功返回的应答时间值（以 100纳秒 为单位，1970年1月1日到现在的时间）。
  * 
  * @return x_int32_t
  *         - 成功，返回 0；
