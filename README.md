@@ -1,5 +1,5 @@
 # ntp_client #
-使用NTP协议获取网络时间戳，提供的 C/C++ 源码支持 Windows 和 Linux 两大平台。
+使用NTP协议获取网络时间戳，提供的 C/C++ 源码支持 Windows 和 Linux(CentOS) 两大平台。
 
 ## Winodws 平台上编译与测试 ##
 在 VC 的命令行环境下，使用 **nmake /f Makefile.mk** 命令进行编译，输出的测试程序为 
