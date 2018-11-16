@@ -1,22 +1,22 @@
-/**
+﻿/**
  * @file    main.cpp
  * <pre>
  * Copyright (c) 2018, Gaaagaa All rights reserved.
  * 
- * �ļ����ƣ�main.cpp
- * �������ڣ�2018��11��15��
- * �ļ���ʶ��
- * �ļ�ժҪ��ʹ��NTPЭ���ȡ����ʱ����Ĳ��Գ���
+ * 文件名称：main.cpp
+ * 创建日期：2018年11月15日
+ * 文件标识：
+ * 文件摘要：使用NTP协议获取网络时间戳的测试程序。
  * 
- * ��ǰ�汾��1.0.0.0
- * ��    �ߣ�
- * ������ڣ�2018��11��15��
- * �汾ժҪ��
+ * 当前版本：1.0.0.0
+ * 作    者：
+ * 完成日期：2018年11月15日
+ * 版本摘要：
  * 
- * ȡ���汾��
- * ԭ����  ��
- * ������ڣ�
- * �汾ժҪ��
+ * 取代版本：
+ * 原作者  ：
+ * 完成日期：
+ * 版本摘要：
  * </pre>
  */
 
@@ -24,7 +24,6 @@
 
 #ifdef _WIN32
 #include <WinSock2.h>
-#pragma comment(lib, "ws2_32.lib")
 #endif // _WIN32
 
 #include <string>
@@ -38,7 +37,7 @@
 
 /**
 * @class vxWSASocketInit
-* @brief �Զ� ����/ж�� WinSock ��Ĳ����ࡣ
+* @brief 自动 加载/卸载 WinSock 库的操作类。
 */
 class vxWSASocketInit
 {
@@ -63,11 +62,11 @@ protected:
 
 /**********************************************************/
 /**
- * @brief ���ʱ�����Ϣ��
+ * @brief 输出时间戳信息。
  */
 x_void_t ts_output(x_cstring_t xszt_name, const x_ntp_time_context_t * const xtm_ctxt)
 {
-    printf("\t%s : %04d-%02d-%02d_%02d-%02d-%02d.%03d\n",
+    printf("  %s : %04d-%02d-%02d_%02d-%02d-%02d.%03d\n",
         xszt_name,
         xtm_ctxt->xut_year,
         xtm_ctxt->xut_month,
@@ -92,7 +91,7 @@ int main(int argc, char * argv[])
 #endif // _WIN32
 
     //======================================
-    // ���õ� NTP ��������ַ�б�
+    // 常用的 NTP 服务器地址列表
 
     std::vector< std::string > xvec_ntp_host;
     xvec_ntp_host.push_back(std::string("1.cn.pool.ntp.org"         ));
@@ -128,12 +127,13 @@ int main(int argc, char * argv[])
         xit_err = ntp_get_time(itvec->c_str(), NTP_PORT, 5000, &xut_timev);
         if (0 == xit_err)
         {
-            ntp_tmctxt_bv(xut_timev, &xnpt_timec);   // ת���� ��-��-��_ʱ-��-��.���� ��ʱ����Ϣ
-            ts_output(itvec->c_str(), &xnpt_timec);  // ���ʱ����Ϣ
+            ntp_tmctxt_bv(xut_timev, &xnpt_timec);   // 转换成 年-月-日_时-分-秒.毫秒 的时间信息
+            ts_output(itvec->c_str(), &xnpt_timec);  // 输出时间信息
         }
         else
         {
-            // ����ʧ�ܣ���������ΪӦ��ʱ......
+            // 请求失败，可能是因为应答超时......
+            printf("  %s return error code : %d\n", itvec->c_str(), xit_err);
         }
     }
 

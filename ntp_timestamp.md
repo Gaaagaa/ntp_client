@@ -11,7 +11,7 @@ NTP的基本工作原理如图所示（Device A 相当于客户端，Device B �
 
 图 NTP基本原理图
 
-![NTP基本原理图](https://i.imgur.com/IPKGntp.png)
+![NTP基本原理图](https://img2018.cnblogs.com/blog/1494489/201811/1494489-20181116180148262-1580200220.png)
 
 获取网络时间戳的工作过程如下：
 
@@ -35,7 +35,7 @@ NTP有两种不同类型的报文，一种是时钟同步报文，另一种是�
 
 图 时钟同步报文格式
 
-![时钟同步报文格式](https://i.imgur.com/DH4Jzx2.png)
+![时钟同步报文格式](https://img2018.cnblogs.com/blog/1494489/201811/1494489-20181116180232768-1346055939.png)
 
 主要字段的解释如下：
 
@@ -146,23 +146,29 @@ typedef struct x_ntp_packet_t
 ```
 /**********************************************************/
 /**
- * @brief 向 NTP 服务器发送 NTP 请求，获取服务器时间戳详细信息。
+ * @brief 向 NTP 服务器发送 NTP 请求，获取相关计算所需的时间戳（T1、T2、T3、T4如下所诉）。
+ * <pre>
+ *     1. 客户端 发送一个NTP报文给 服务端，该报文带有它离开 客户端 时的时间戳，该时间戳为 T1。
+ *     2. 当此NTP报文到达 服务端 时，服务端 加上自己的时间戳，该时间戳为 T2。
+ *     3. 当此NTP报文离开 服务端 时，服务端 再加上自己的时间戳，该时间戳为 T3。
+ *     4. 当 客户端 接收到该应答报文时，客户端 的本地时间戳，该时间戳为 T4。
+ * </prev>
  *
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址）。
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 超时时间（单位 毫秒）。
- * @param [out] xnpt_rptr : 操作成功返回的应答信息。
+ * @param [out] xit_tmlst : 操作成功返回的相关计算所需的时间戳（T1、T2、T3、T4）。
  *
  * @return x_int32_t
  *         - 成功，返回 0；
  *         - 失败，返回 错误码。
  */
-static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t     xut_tmout, x_ntp_packet_t * xnpt_rptr)
+static x_int32_t ntp_get_time_values(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xut_tmout, x_int64_t xit_tmlst[4])
 {
     x_int32_t xit_err = -1;
 
     x_sockfd_t      xfdt_sockfd = X_INVALID_SOCKFD;
-    x_ntp_packet_t  xnpt_request;
+    x_ntp_packet_t  xnpt_buffer;
     x_ntp_timeval_t xtm_value;
 
     x_int32_t xit_addrlen = sizeof(struct sockaddr_in);
@@ -172,7 +178,7 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
     {
         //======================================
 
-        if ((X_NULL == xszt_host) || (xut_tmout <= 0) || (X_NULL == xnpt_rptr))
+        if ((X_NULL == xszt_host) || (xut_tmout <= 0) || (X_NULL == xit_tmlst))
         {
             break;
         }
@@ -187,19 +193,14 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
 
         // 设置 发送/接收 超时时间
 #ifdef _WIN32
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xut_tmout, sizeof    (x_uint32_t));
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xut_tmout, sizeof    (x_uint32_t));
+        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xut_tmout, sizeof(x_uint32_t));
+        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xut_tmout, sizeof(x_uint32_t));
 #else // !_WIN32
         xtm_value.tv_sec  = (x_long_t)((xut_tmout / 1000));
         xtm_value.tv_usec = (x_long_t)((xut_tmout % 1000) * 1000);
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xtm_value, sizeof    (x_ntp_timeval_t));
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xtm_value, sizeof    (x_ntp_timeval_t));
+        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
+        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
 #endif // _WIN32
-
-        //======================================
-
-        // 初始化请求数据包
-        ntp_init_request_packet(&xnpt_request);
 
         // 服务端主机地址
         memset(&skaddr_host, 0, sizeof(struct sockaddr_in));
@@ -207,14 +208,24 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
         skaddr_host.sin_port   = htons(xut_port);
         inet_pton(AF_INET, xszt_host, &skaddr_host.sin_addr.s_addr);
 
-        // 系统时钟最后一次被设定或更新的时间
+        //======================================
+
+        // 初始化请求数据包
+        ntp_init_request_packet(&xnpt_buffer);
+
+        // NTP请求报文离开发送端时发送端的本地时间
         ntp_gettimeofday(&xtm_value);
-        ntp_timeval_to_timestamp(&xnpt_request.xtmst_reference, &xtm_value);
-        ntp_hton_packet(&xnpt_request);
+        ntp_timeval_to_timestamp(&xnpt_buffer.xtmst_originate, &xtm_value);
+
+        // T1
+        xit_tmlst[0] = (x_int64_t)ntp_timeval_ns100(&xtm_value);
+
+        // 转成网络字节序
+        ntp_hton_packet(&xnpt_buffer);
 
         // 投递请求
         xit_err = sendto(xfdt_sockfd,
-                         (x_char_t *)&xnpt_request,
+                         (x_char_t *)&xnpt_buffer,
                          sizeof(x_ntp_packet_t),
                          0,
                          (sockaddr *)&skaddr_host,
@@ -227,9 +238,11 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
 
         //======================================
 
+        memset(&xnpt_buffer, 0, sizeof(x_ntp_packet_t));
+
         // 接收应答
         xit_err = recvfrom(xfdt_sockfd,
-                           (x_char_t *)xnpt_rptr,
+                           (x_char_t *)&xnpt_buffer,
                            sizeof(x_ntp_packet_t),
                            0,
                            (sockaddr *)&skaddr_host,
@@ -246,21 +259,17 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
             break;
         }
 
-        // 系统时钟最后一次被设定或更新的时间
-        xnpt_rptr->xtmst_reference.xut_seconds  = xnpt_request.xtmst_reference.xut_seconds ;
-        xnpt_rptr->xtmst_reference.xut_fraction = xnpt_request.xtmst_reference.xut_fraction;
+        // T4
+        xit_tmlst[3] = (x_int64_t)ntp_gettimevalue();
 
         // 转成主机字节序
-        ntp_ntoh_packet(xnpt_rptr);
+        ntp_ntoh_packet(&xnpt_buffer);
 
-        // NTP请求报文离开发送端时发送端的本地时间
-        ntp_gettimeofday(&xtm_value);
-        ntp_timeval_to_timestamp(&xnpt_rptr->xtmst_originate, &xtm_value);
-
-        xit_err = 0;
+        xit_tmlst[1] = (x_int64_t)ntp_timestamp_ns100(&xnpt_buffer.xtmst_receive ); // T2
+        xit_tmlst[2] = (x_int64_t)ntp_timestamp_ns100(&xnpt_buffer.xtmst_transmit); // T3
 
         //======================================
-
+        xit_err = 0;
     } while (0);
 
     if (X_INVALID_SOCKFD != xfdt_sockfd)

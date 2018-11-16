@@ -63,6 +63,13 @@ static inline x_void_t ts_output(x_cstring_t xszt_name, const x_ntp_time_context
         xtm_ctxt->xut_msec  );
 }
 
+static inline x_void_t tn_output(x_cstring_t xszt_name, const x_ntp_timestamp_t * const xtm_stamp)
+{
+    x_ntp_time_context_t xtm_ctxt;
+    ntp_tmctxt_ts(xtm_stamp, &xtm_ctxt);
+    ts_output(xszt_name, &xtm_ctxt);
+}
+
 static inline x_void_t tv_output(x_cstring_t xszt_name, const x_ntp_timeval_t * const xtm_value)
 {
     x_ntp_time_context_t xtm_ctxt;
@@ -79,6 +86,7 @@ static inline x_void_t bv_output(x_cstring_t xszt_name, x_uint64_t xut_time)
 
 #define XOUTLINE(szformat, ...)           do { printf((szformat), ##__VA_ARGS__); printf("\n"); } while (0)
 #define TS_OUTPUT(xszt_name, xtm_ctxt )   ts_output((xszt_name), (xtm_ctxt ))
+#define TN_OUTPUT(xszt_name, xtm_stamp)   tn_output((xszt_name), (xtm_stamp))
 #define TV_OUTPUT(xszt_name, xtm_value)   tv_output((xszt_name), (xtm_value))
 #define BV_OUTPUT(xszt_name, xut_time )   bv_output((xszt_name), (xut_time ))
 
@@ -86,6 +94,7 @@ static inline x_void_t bv_output(x_cstring_t xszt_name, x_uint64_t xut_time)
 
 #define XOUTLINE(szformat, ...)
 #define TS_OUTPUT(xszt_name, xtm_ctxt )
+#define TN_OUTPUT(xszt_name, xtm_stamp)
 #define TV_OUTPUT(xszt_name, xtm_value)
 #define BV_OUTPUT(xszt_name, xut_time )
 
@@ -127,10 +136,10 @@ typedef struct x_ntp_packet_t
     x_uint32_t        xut_root_dispersion;  ///< 系统时钟相对于主参考时钟的最大误差
     x_uint32_t        xut_ref_indentifier;  ///< 参考时钟源的标识
 
-    x_ntp_timestamp_t xtmst_reference;      ///< 系统时钟最后一次被设定或更新的时间
-    x_ntp_timestamp_t xtmst_originate;      ///< NTP请求报文离开发送端时发送端的本地时间
-    x_ntp_timestamp_t xtmst_receive  ;      ///< NTP请求报文到达接收端时接收端的本地时间
-    x_ntp_timestamp_t xtmst_transmit ;      ///< 应答报文离开应答者时应答者的本地时间
+    x_ntp_timestamp_t xtmst_reference;      ///< 系统时钟最后一次被设定或更新的时间（应答完成后，用于存储 T1）
+    x_ntp_timestamp_t xtmst_originate;      ///< NTP请求报文离开发送端时发送端的本地时间（应答完成后，用于存储 T4）
+    x_ntp_timestamp_t xtmst_receive  ;      ///< NTP请求报文到达接收端时接收端的本地时间（应答完成后，用于存储 T2）
+    x_ntp_timestamp_t xtmst_transmit ;      ///< NTP应答报文离开应答者时应答者的本地时间（应答完成后，用于存储 T3）
 } x_ntp_packet_t;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -670,23 +679,29 @@ static x_void_t ntp_hton_packet(x_ntp_packet_t * xnpt_nptr)
 
 /**********************************************************/
 /**
- * @brief 向 NTP 服务器发送 NTP 请求，获取服务器时间戳详细信息。
+ * @brief 向 NTP 服务器发送 NTP 请求，获取相关计算所需的时间戳（T1、T2、T3、T4如下所诉）。
+ * <pre>
+ *     1. 客户端 发送一个NTP报文给 服务端，该报文带有它离开 客户端 时的时间戳，该时间戳为 T1。
+ *     2. 当此NTP报文到达 服务端 时，服务端 加上自己的时间戳，该时间戳为 T2。
+ *     3. 当此NTP报文离开 服务端 时，服务端 再加上自己的时间戳，该时间戳为 T3。
+ *     4. 当 客户端 接收到该应答报文时，客户端 的本地时间戳，该时间戳为 T4。
+ * </prev>
  *
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址）。
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 超时时间（单位 毫秒）。
- * @param [out] xnpt_rptr : 操作成功返回的应答信息。
+ * @param [out] xit_tmlst : 操作成功返回的相关计算所需的时间戳（T1、T2、T3、T4）。
  *
  * @return x_int32_t
  *         - 成功，返回 0；
  *         - 失败，返回 错误码。
  */
-static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xut_tmout, x_ntp_packet_t * xnpt_rptr)
+static x_int32_t ntp_get_time_values(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xut_tmout, x_int64_t xit_tmlst[4])
 {
     x_int32_t xit_err = -1;
 
     x_sockfd_t      xfdt_sockfd = X_INVALID_SOCKFD;
-    x_ntp_packet_t  xnpt_request;
+    x_ntp_packet_t  xnpt_buffer;
     x_ntp_timeval_t xtm_value;
 
     x_int32_t xit_addrlen = sizeof(struct sockaddr_in);
@@ -696,7 +711,7 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
     {
         //======================================
 
-        if ((X_NULL == xszt_host) || (xut_tmout <= 0) || (X_NULL == xnpt_rptr))
+        if ((X_NULL == xszt_host) || (xut_tmout <= 0) || (X_NULL == xit_tmlst))
         {
             break;
         }
@@ -720,25 +735,30 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
         setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
 #endif // _WIN32
 
-        //======================================
-
-        // 初始化请求数据包
-        ntp_init_request_packet(&xnpt_request);
-
         // 服务端主机地址
         memset(&skaddr_host, 0, sizeof(struct sockaddr_in));
         skaddr_host.sin_family = AF_INET;
         skaddr_host.sin_port   = htons(xut_port);
         inet_pton(AF_INET, xszt_host, &skaddr_host.sin_addr.s_addr);
 
-        // 系统时钟最后一次被设定或更新的时间
+        //======================================
+
+        // 初始化请求数据包
+        ntp_init_request_packet(&xnpt_buffer);
+
+        // NTP请求报文离开发送端时发送端的本地时间
         ntp_gettimeofday(&xtm_value);
-        ntp_timeval_to_timestamp(&xnpt_request.xtmst_reference, &xtm_value);
-        ntp_hton_packet(&xnpt_request);
+        ntp_timeval_to_timestamp(&xnpt_buffer.xtmst_originate, &xtm_value);
+
+        // T1
+        xit_tmlst[0] = (x_int64_t)ntp_timeval_ns100(&xtm_value);
+
+        // 转成网络字节序
+        ntp_hton_packet(&xnpt_buffer);
 
         // 投递请求
         xit_err = sendto(xfdt_sockfd,
-                         (x_char_t *)&xnpt_request,
+                         (x_char_t *)&xnpt_buffer,
                          sizeof(x_ntp_packet_t),
                          0,
                          (sockaddr *)&skaddr_host,
@@ -751,9 +771,11 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
 
         //======================================
 
+        memset(&xnpt_buffer, 0, sizeof(x_ntp_packet_t));
+
         // 接收应答
         xit_err = recvfrom(xfdt_sockfd,
-                           (x_char_t *)xnpt_rptr,
+                           (x_char_t *)&xnpt_buffer,
                            sizeof(x_ntp_packet_t),
                            0,
                            (sockaddr *)&skaddr_host,
@@ -770,21 +792,17 @@ static x_int32_t ntp_get_time_packet(x_cstring_t xszt_host, x_uint16_t xut_port,
             break;
         }
 
-        // 系统时钟最后一次被设定或更新的时间
-        xnpt_rptr->xtmst_reference.xut_seconds  = xnpt_request.xtmst_reference.xut_seconds ;
-        xnpt_rptr->xtmst_reference.xut_fraction = xnpt_request.xtmst_reference.xut_fraction;
+        // T4
+        xit_tmlst[3] = (x_int64_t)ntp_gettimevalue();
 
         // 转成主机字节序
-        ntp_ntoh_packet(xnpt_rptr);
+        ntp_ntoh_packet(&xnpt_buffer);
 
-        // NTP请求报文离开发送端时发送端的本地时间
-        ntp_gettimeofday(&xtm_value);
-        ntp_timeval_to_timestamp(&xnpt_rptr->xtmst_originate, &xtm_value);
-
-        xit_err = 0;
+        xit_tmlst[1] = (x_int64_t)ntp_timestamp_ns100(&xnpt_buffer.xtmst_receive ); // T2
+        xit_tmlst[2] = (x_int64_t)ntp_timestamp_ns100(&xnpt_buffer.xtmst_transmit); // T3
 
         //======================================
-
+        xit_err = 0;
     } while (0);
 
     if (X_INVALID_SOCKFD != xfdt_sockfd)
@@ -814,12 +832,7 @@ x_int32_t ntp_get_time(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xu
     x_int32_t xit_err = -1;
     std::vector< std::string > xvec_host;
 
-    x_ntp_packet_t xnpt_response;
-
-    x_llong_t xlt_time1 = 0LL;
-    x_llong_t xlt_time2 = 0LL;
-    x_llong_t xlt_time3 = 0LL;
-    x_llong_t xlt_time4 = 0LL;
+    x_int64_t xit_tmlst[4] = { 0 };
 
     //======================================
     // 参数验证
@@ -857,22 +870,16 @@ x_int32_t ntp_get_time(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xu
         XOUTLINE("========================================");
         XOUTLINE("  %s -> %s\n", xszt_host, itvec->c_str());
 
-        memset(&xnpt_response, 0, sizeof(x_ntp_packet_t));
-        xit_err = ntp_get_time_packet(itvec->c_str(), xut_port, xut_tmout, &xnpt_response);
+        xit_err = ntp_get_time_values(itvec->c_str(), xut_port, xut_tmout, xit_tmlst);
         if (0 == xit_err)
         {
-            xlt_time1 = (x_llong_t)ntp_timestamp_ns100(&xnpt_response.xtmst_reference);
-            xlt_time2 = (x_llong_t)ntp_timestamp_ns100(&xnpt_response.xtmst_receive  );
-            xlt_time3 = (x_llong_t)ntp_timestamp_ns100(&xnpt_response.xtmst_transmit );
-            xlt_time4 = (x_llong_t)ntp_timestamp_ns100(&xnpt_response.xtmst_originate);
-
             // T = T4 + ((T2 - T1) + (T3 - T4)) / 2;
-            *xut_timev = xlt_time4 + ((xlt_time2 - xlt_time1) + (xlt_time3 - xlt_time4)) / 2;
+            *xut_timev = xit_tmlst[3] + ((xit_tmlst[1] - xit_tmlst[0]) + (xit_tmlst[2] - xit_tmlst[3])) / 2;
 
-            BV_OUTPUT("time1", xlt_time1);
-            BV_OUTPUT("time2", xlt_time2);
-            BV_OUTPUT("time3", xlt_time3);
-            BV_OUTPUT("time4", xlt_time4);
+            BV_OUTPUT("time1", xit_tmlst[0]);
+            BV_OUTPUT("time2", xit_tmlst[1]);
+            BV_OUTPUT("time3", xit_tmlst[2]);
+            BV_OUTPUT("time4", xit_tmlst[3]);
             BV_OUTPUT("timev", *xut_timev);
             BV_OUTPUT("timec", ntp_gettimevalue());
 
