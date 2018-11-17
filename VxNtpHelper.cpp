@@ -685,7 +685,7 @@ static x_void_t ntp_hton_packet(x_ntp_packet_t * xnpt_nptr)
  *     2. 当此NTP报文到达 服务端 时，服务端 加上自己的时间戳，该时间戳为 T2。
  *     3. 当此NTP报文离开 服务端 时，服务端 再加上自己的时间戳，该时间戳为 T3。
  *     4. 当 客户端 接收到该应答报文时，客户端 的本地时间戳，该时间戳为 T4。
- * </prev>
+ * </pre>
  *
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址）。
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
