@@ -22,12 +22,12 @@
 
 #include "VxNtpHelper.h"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <windows.h>
 #include <time.h>
-#else // !_WIN32
+#else // !_MSC_VER
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -38,7 +38,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
-#endif // _WIN32
+#endif // _MSC_VER
 
 #include <string>
 #include <vector>
@@ -224,7 +224,7 @@ static inline x_uint64_t ntp_timestamp_ms(const x_ntp_timestamp_t * const xtm_ti
  */
 x_uint64_t ntp_gettimevalue(void)
 {
-#ifdef _WIN32
+#ifdef _MSC_VER
     FILETIME       xtime_file;
     ULARGE_INTEGER xtime_value;
 
@@ -233,12 +233,12 @@ x_uint64_t ntp_gettimevalue(void)
     xtime_value.HighPart = xtime_file.dwHighDateTime;
 
     return (x_uint64_t)(xtime_value.QuadPart - NS100_1970);
-#else // !_WIN32
+#else // !_MSC_VER
     struct timeval tmval;
     gettimeofday(&tmval, X_NULL);
 
     return (10000000ULL * tmval.tv_sec + 10ULL * tmval.tv_usec);
-#endif // _WIN32
+#endif // _MSC_VER
 }
 
 /**********************************************************/
@@ -247,7 +247,7 @@ x_uint64_t ntp_gettimevalue(void)
  */
 x_void_t ntp_gettimeofday(x_ntp_timeval_t * xtm_value)
 {
-#ifdef _WIN32
+#ifdef _MSC_VER
     FILETIME       xtime_file;
     ULARGE_INTEGER xtime_value;
 
@@ -257,13 +257,13 @@ x_void_t ntp_gettimeofday(x_ntp_timeval_t * xtm_value)
 
     xtm_value->tv_sec  = (x_long_t)((xtime_value.QuadPart - NS100_1970) / 10000000LL); // 1970年以来的秒数
     xtm_value->tv_usec = (x_long_t)((xtime_value.QuadPart / 10LL      ) % 1000000LL ); // 微秒
-#else // !_WIN32
+#else // !_MSC_VER
     struct timeval tmval;
     gettimeofday(&tmval, X_NULL);
 
     xtm_value->tv_sec  = tmval.tv_sec ;
     xtm_value->tv_usec = tmval.tv_usec;
-#endif // _WIN32
+#endif // _MSC_VER
 }
 
 /**********************************************************/
@@ -288,7 +288,7 @@ x_uint64_t ntp_time_value(x_ntp_time_context_t * xtm_context)
     }
 #endif
 
-#ifdef _WIN32
+#ifdef _MSC_VER
     ULARGE_INTEGER xtime_value;
     FILETIME       xtime_sysfile;
     FILETIME       xtime_locfile;
@@ -312,7 +312,7 @@ x_uint64_t ntp_time_value(x_ntp_time_context_t * xtm_context)
             xut_time = xtime_value.QuadPart - NS100_1970;
         }
     }
-#else // !_WIN32
+#else // !_MSC_VER
     struct tm       xtm_system;
     x_ntp_timeval_t xtm_value;
 
@@ -332,7 +332,7 @@ x_uint64_t ntp_time_value(x_ntp_time_context_t * xtm_context)
     {
         xut_time = ntp_timeval_ns100(&xtm_value);
     }
-#endif // _WIN32
+#endif // _MSC_VER
 
     return xut_time;
 }
@@ -351,7 +351,7 @@ x_uint64_t ntp_time_value(x_ntp_time_context_t * xtm_context)
  */
 x_bool_t ntp_tmctxt_bv(x_uint64_t xut_time, x_ntp_time_context_t * xtm_context)
 {
-#ifdef _WIN32
+#ifdef _MSC_VER
     ULARGE_INTEGER xtime_value;
     FILETIME       xtime_sysfile;
     FILETIME       xtime_locfile;
@@ -383,7 +383,7 @@ x_bool_t ntp_tmctxt_bv(x_uint64_t xut_time, x_ntp_time_context_t * xtm_context)
     xtm_context->xut_minute = xtime_system.wMinute      ;
     xtm_context->xut_second = xtime_system.wSecond      ;
     xtm_context->xut_msec   = xtime_system.wMilliseconds;
-#else // !_WIN32
+#else // !_MSC_VER
     struct tm xtm_system;
     time_t xtm_time = (time_t)(xut_time / 10000000ULL);
     localtime_r(&xtm_time, &xtm_system);
@@ -396,7 +396,7 @@ x_bool_t ntp_tmctxt_bv(x_uint64_t xut_time, x_ntp_time_context_t * xtm_context)
     xtm_context->xut_minute = xtm_system.tm_min        ;
     xtm_context->xut_second = xtm_system.tm_sec        ;
     xtm_context->xut_msec   = (x_uint32_t)((xut_time % 10000000ULL) / 10000L);
-#endif // _WIN32
+#endif // _MSC_VER
 
     return X_TRUE;
 }
@@ -578,11 +578,11 @@ static x_int32_t ntp_gethostbyname(x_cstring_t xszt_dname, x_int32_t xit_family,
  */
 static x_int32_t ntp_sockfd_lasterror()
 {
-#ifdef _WIN32
+#ifdef _MSC_VER
     return (x_int32_t)WSAGetLastError();
-#else // !_WIN32
+#else // !_MSC_VER
     return errno;
-#endif // _WIN32
+#endif // _MSC_VER
 }
 
 /**********************************************************/
@@ -591,11 +591,11 @@ static x_int32_t ntp_sockfd_lasterror()
  */
 static x_int32_t ntp_sockfd_close(x_sockfd_t xfdt_sockfd)
 {
-#ifdef _WIN32
+#ifdef _MSC_VER
     return closesocket(xfdt_sockfd);
-#else // !_WIN32
+#else // !_MSC_VER
     return close(xfdt_sockfd);
-#endif // _WIN32
+#endif // _MSC_VER
 }
 
 /**********************************************************/
@@ -725,15 +725,15 @@ static x_int32_t ntp_get_time_values(x_cstring_t xszt_host, x_uint16_t xut_port,
         }
 
         // 设置 发送/接收 超时时间
-#ifdef _WIN32
+#ifdef _MSC_VER
         setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xut_tmout, sizeof(x_uint32_t));
         setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xut_tmout, sizeof(x_uint32_t));
-#else // !_WIN32
+#else // !_MSC_VER
         xtm_value.tv_sec  = (x_long_t)((xut_tmout / 1000));
         xtm_value.tv_usec = (x_long_t)((xut_tmout % 1000) * 1000);
         setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
         setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
-#endif // _WIN32
+#endif // _MSC_VER
 
         // 服务端主机地址
         memset(&skaddr_host, 0, sizeof(struct sockaddr_in));
