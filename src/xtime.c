@@ -57,17 +57,8 @@
 // 内部相关数据类型与常量
 // 
 
-/** 1900 ~ 1970 年之间的时间 秒数 */
-#define JAN_1970     0x83AA7E80
-
 /** 1601 ~ 1970 年之间的时间 百纳秒数 */
-#define NS100_1970   116444736000000000LL
-
-/** 无效的时间计量值 */
-const xtime_meter_t XTIME_INVALID_METER = 0ULL;
-
-/** 无效的时间描述信息 */
-const xtime_cntxt_t XTIME_INVALID_CNTXT = { 0 };
+#define XTIME_UNSEC_1601_1970 116444736000000000LL
 
 //====================================================================
 
@@ -79,9 +70,9 @@ const xtime_cntxt_t XTIME_INVALID_CNTXT = { 0 };
 /**
  * @brief 获取当前系统的 时间计量值。
  */
-xtime_meter_t time_meter(void)
+xtime_unsec_t time_unsec(void)
 {
-    xtime_meter_t xtime_meter = XTIME_INVALID_METER;
+    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
 
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -92,53 +83,52 @@ xtime_meter_t time_meter(void)
     xtime_value.LowPart  = xtime_file.dwLowDateTime;
     xtime_value.HighPart = xtime_file.dwHighDateTime;
 
-    xtime_meter = (xtime_meter_t)(xtime_value.QuadPart - NS100_1970);
+    xtm_unsec = (xtime_unsec_t)(xtime_value.QuadPart - XTIME_UNSEC_1601_1970);
 
 #elif (defined(__linux__) || defined(__unix__))
 
-    struct timeval tmval;
-    gettimeofday(&tmval, X_NULL);
+    struct timeval xtm_value;
+    gettimeofday(&xtm_value, X_NULL);
 
-    xtime_meter = (xtime_meter_t)(10000000ULL * tmval.tv_sec + 10ULL * tmval.tv_usec);
+    xtm_unsec = (xtime_unsec_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
 
 #else // UNKNOW
 #error "unknow platform!"
 #endif // PLATFORM
 
-    return xtime_meter;
+    return xtm_unsec;
 }
 
 /**********************************************************/
 /**
  * @brief 获取当前系统的 时间描述信息。
  */
-xtime_cntxt_t time_cntxt(void)
+xtime_descr_t time_descr(void)
 {
-    return time_mtc(time_meter());
+    return time_utod(time_unsec());
 }
 
 /**********************************************************/
 /**
  * @brief 将 时间描述信息 转换为 时间计量值。
  * 
- * @param [in ] xtm_cntxt : 待转换的 时间描述信息。
+ * @param [in ] xtm_descr : 待转换的 时间描述信息。
  * 
- * @return xtime_meter_t : 
- *      - 成功，返回 时间计量值；
- *      - 失败，返回 XTIME_INVALID_METER。
+ * @return xtime_unsec_t : 
+ * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断其是否为无效值。
  */
-xtime_meter_t time_ctm(xtime_cntxt_t xtm_cntxt)
+xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
 {
-    xtime_meter_t xtm_meter = XTIME_INVALID_METER;
+    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
 
 #if 0
-    if ((xtm_cntxt.ctx_year   < 1970) ||
-        (xtm_cntxt.ctx_month  <    1) || (xtm_cntxt.ctx_month > 12) ||
-        (xtm_cntxt.ctx_day    <    1) || (xtm_cntxt.ctx_day   > 31) ||
-        (xtm_cntxt.ctx_hour   >   23) ||
-        (xtm_cntxt.ctx_minute >   59) ||
-        (xtm_cntxt.ctx_second >   59) ||
-        (xtm_cntxt.ctx_msec   >  999))
+    if ((xtm_descr.ctx_year   < 1970) ||
+        (xtm_descr.ctx_month  <    1) || (xtm_descr.ctx_month > 12) ||
+        (xtm_descr.ctx_day    <    1) || (xtm_descr.ctx_day   > 31) ||
+        (xtm_descr.ctx_hour   >   23) ||
+        (xtm_descr.ctx_minute >   59) ||
+        (xtm_descr.ctx_second >   59) ||
+        (xtm_descr.ctx_msec   >  999))
     {
         return XTIME_INVALID_METER;
     }
@@ -151,14 +141,14 @@ xtime_meter_t time_ctm(xtime_cntxt_t xtm_cntxt)
     FILETIME       xtime_lfile;
     SYSTEMTIME     xtime_system;
 
-    xtime_system.wYear         = xtm_cntxt.ctx_year  ;
-    xtime_system.wMonth        = xtm_cntxt.ctx_month ;
-    xtime_system.wDay          = xtm_cntxt.ctx_day   ;
-    xtime_system.wDayOfWeek    = xtm_cntxt.ctx_week  ;
-    xtime_system.wHour         = xtm_cntxt.ctx_hour  ;
-    xtime_system.wMinute       = xtm_cntxt.ctx_minute;
-    xtime_system.wSecond       = xtm_cntxt.ctx_second;
-    xtime_system.wMilliseconds = xtm_cntxt.ctx_msec  ;
+    xtime_system.wYear         = xtm_descr.ctx_year  ;
+    xtime_system.wMonth        = xtm_descr.ctx_month ;
+    xtime_system.wDay          = xtm_descr.ctx_day   ;
+    xtime_system.wDayOfWeek    = xtm_descr.ctx_week  ;
+    xtime_system.wHour         = xtm_descr.ctx_hour  ;
+    xtime_system.wMinute       = xtm_descr.ctx_minute;
+    xtime_system.wSecond       = xtm_descr.ctx_second;
+    xtime_system.wMilliseconds = xtm_descr.ctx_msec  ;
 
     if (SystemTimeToFileTime(&xtime_system, &xtime_lfile))
     {
@@ -167,7 +157,7 @@ xtime_meter_t time_ctm(xtime_cntxt_t xtm_cntxt)
             xtime_value.LowPart  = xtime_sfile.dwLowDateTime ;
             xtime_value.HighPart = xtime_sfile.dwHighDateTime;
 
-            xtm_meter = (xtime_meter_t)(xtime_value.QuadPart - NS100_1970);
+            xtm_unsec = (xtime_unsec_t)(xtime_value.QuadPart - XTIME_UNSEC_1601_1970);
         }
     }
 
@@ -176,43 +166,42 @@ xtime_meter_t time_ctm(xtime_cntxt_t xtm_cntxt)
     struct tm      xtm_system;
     struct timeval xtm_value;
 
-    xtm_system.tm_sec   = xtm_cntxt.ctx_second;
-    xtm_system.tm_min   = xtm_cntxt.ctx_minute;
-    xtm_system.tm_hour  = xtm_cntxt.ctx_hour  ;
-    xtm_system.tm_mday  = xtm_cntxt.ctx_day   ;
-    xtm_system.tm_mon   = xtm_cntxt.ctx_month - 1   ;
-    xtm_system.tm_year  = xtm_cntxt.ctx_year  - 1900;
+    xtm_system.tm_sec   = xtm_descr.ctx_second;
+    xtm_system.tm_min   = xtm_descr.ctx_minute;
+    xtm_system.tm_hour  = xtm_descr.ctx_hour  ;
+    xtm_system.tm_mday  = xtm_descr.ctx_day   ;
+    xtm_system.tm_mon   = xtm_descr.ctx_month - 1   ;
+    xtm_system.tm_year  = xtm_descr.ctx_year  - 1900;
     xtm_system.tm_wday  = 0;
     xtm_system.tm_yday  = 0;
     xtm_system.tm_isdst = 0;
 
     xtm_value.tv_sec  = mktime(&xtm_system);
-    xtm_value.tv_usec = xtm_cntxt.ctx_msec * 1000;
+    xtm_value.tv_usec = xtm_descr.ctx_msec * 1000;
     if (-1 != xtm_value.tv_sec)
     {
-        xtm_meter = (xtime_meter_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
+        xtm_unsec = (xtime_unsec_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
     }
 
 #else // UNKNOW
 #error "unknow platform!"
 #endif // PLATFORM
 
-    return xtm_meter;
+    return xtm_unsec;
 }
 
 /**********************************************************/
 /**
- * @brief 将 时间描述信息 转换为 时间计量值。
+ * @brief 将 时间计量值 转换为 时间描述信息。
  * 
- * @param [in ] xtm_meter : 待转换的 时间计量值。
+ * @param [in ] xtm_unsec : 待转换的 时间计量值。
  * 
- * @return xtime_cntxt_t : 
- *      - 成功，返回 时间描述信息；
- *      - 失败，返回 XTIME_INVALID_CNTXT。
+ * @return xtime_descr_t : 
+ * 返回 时间描述信息，可用 XTIME_DESCR_INVALID() 判断其是否为无效。
  */
-xtime_cntxt_t time_mtc(xtime_meter_t xtm_meter)
+xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
 {
-    xtime_cntxt_t xtm_cntxt = XTIME_INVALID_CNTXT;
+    xtime_descr_t xtm_descr = { XTIME_INVALID_DESCR };
 
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -221,48 +210,48 @@ xtime_cntxt_t time_mtc(xtime_meter_t xtm_meter)
     FILETIME       xtime_lfile;
     SYSTEMTIME     xtime_system;
 
-    xtime_value.QuadPart       = xtm_meter + NS100_1970;
+    xtime_value.QuadPart       = xtm_unsec + XTIME_UNSEC_1601_1970;
     xtime_sfile.dwLowDateTime  = xtime_value.LowPart;
     xtime_sfile.dwHighDateTime = xtime_value.HighPart;
     if (!FileTimeToLocalFileTime(&xtime_sfile, &xtime_lfile))
     {
-        return xtm_cntxt;
+        return xtm_descr;
     }
 
     if (!FileTimeToSystemTime(&xtime_lfile, &xtime_system))
     {
-        return xtm_cntxt;
+        return xtm_descr;
     }
 
-    xtm_cntxt.ctx_year   = xtime_system.wYear        ;
-    xtm_cntxt.ctx_month  = xtime_system.wMonth       ;
-    xtm_cntxt.ctx_day    = xtime_system.wDay         ;
-    xtm_cntxt.ctx_week   = xtime_system.wDayOfWeek   ;
-    xtm_cntxt.ctx_hour   = xtime_system.wHour        ;
-    xtm_cntxt.ctx_minute = xtime_system.wMinute      ;
-    xtm_cntxt.ctx_second = xtime_system.wSecond      ;
-    xtm_cntxt.ctx_msec   = xtime_system.wMilliseconds;
+    xtm_descr.ctx_year   = xtime_system.wYear        ;
+    xtm_descr.ctx_month  = xtime_system.wMonth       ;
+    xtm_descr.ctx_day    = xtime_system.wDay         ;
+    xtm_descr.ctx_week   = xtime_system.wDayOfWeek   ;
+    xtm_descr.ctx_hour   = xtime_system.wHour        ;
+    xtm_descr.ctx_minute = xtime_system.wMinute      ;
+    xtm_descr.ctx_second = xtime_system.wSecond      ;
+    xtm_descr.ctx_msec   = xtime_system.wMilliseconds;
 
 #elif (defined(__linux__) || defined(__unix__))
 
     struct tm xtm_system;
-    time_t xtm_time = (time_t)(xtm_meter / 10000000ULL);
+    time_t xtm_time = (time_t)(xtm_unsec / 10000000ULL);
     localtime_r(&xtm_time, &xtm_system);
 
-    xtm_cntxt.ctx_year   = xtm_system.tm_year + 1900;
-    xtm_cntxt.ctx_month  = xtm_system.tm_mon  + 1   ;
-    xtm_cntxt.ctx_day    = xtm_system.tm_mday       ;
-    xtm_cntxt.ctx_week   = xtm_system.tm_wday       ;
-    xtm_cntxt.ctx_hour   = xtm_system.tm_hour       ;
-    xtm_cntxt.ctx_minute = xtm_system.tm_min        ;
-    xtm_cntxt.ctx_second = xtm_system.tm_sec        ;
-    xtm_cntxt.ctx_msec   = (x_uint32_t)((xtm_meter % 10000000ULL) / 10000L);
+    xtm_descr.ctx_year   = xtm_system.tm_year + 1900;
+    xtm_descr.ctx_month  = xtm_system.tm_mon  + 1   ;
+    xtm_descr.ctx_day    = xtm_system.tm_mday       ;
+    xtm_descr.ctx_week   = xtm_system.tm_wday       ;
+    xtm_descr.ctx_hour   = xtm_system.tm_hour       ;
+    xtm_descr.ctx_minute = xtm_system.tm_min        ;
+    xtm_descr.ctx_second = xtm_system.tm_sec        ;
+    xtm_descr.ctx_msec   = (x_uint32_t)((xtm_unsec % 10000000ULL) / 10000L);
 
 #else // UNKNOW
 #error "unknow platform!"
 #endif // PLATFORM
 
-    return xtm_cntxt;
+    return xtm_descr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

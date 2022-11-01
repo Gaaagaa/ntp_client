@@ -22,9 +22,9 @@
 
 int main(int argc, char * argv[])
 {
-    xtime_meter_t xtm_meter = XTIME_INVALID_METER;
-    xtime_cntxt_t xtm_cntxt = XTIME_INVALID_CNTXT;
-    xtime_cntxt_t xtm_sctxt = XTIME_INVALID_CNTXT;
+    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
+    xtime_descr_t xtm_descr = { XTIME_INVALID_DESCR };
+    xtime_descr_t xtm_system = { XTIME_INVALID_DESCR };
 
     //======================================
     // 常用的 NTP 服务器地址列表
@@ -32,30 +32,23 @@ int main(int argc, char * argv[])
     x_int32_t   xit_iter = 0;
     x_cstring_t xszt_host[] =
     {
-        "1.cn.pool.ntp.org"         ,
-        "2.cn.pool.ntp.org"         ,
-        "3.cn.pool.ntp.org"         ,
-        "0.cn.pool.ntp.org"         ,
-        "cn.pool.ntp.org"           ,
-        "tw.pool.ntp.org"           ,
-        "0.tw.pool.ntp.org"         ,
-        "1.tw.pool.ntp.org"         ,
-        "2.tw.pool.ntp.org"         ,
-        "3.tw.pool.ntp.org"         ,
-        "pool.ntp.org"              ,
-        "time.windows.com"          ,
-        "time.nist.gov"             ,
-        "time-nw.nist.gov"          ,
-        "asia.pool.ntp.org"         ,
-        "europe.pool.ntp.org"       ,
-        "oceania.pool.ntp.org"      ,
-        "north-america.pool.ntp.org",
-        "south-america.pool.ntp.org",
-        "africa.pool.ntp.org"       ,
-        "ca.pool.ntp.org"           ,
-        "uk.pool.ntp.org"           ,
-        "us.pool.ntp.org"           ,
-        "au.pool.ntp.org"           ,
+        "ntp.tencent.com" ,
+        "ntp1.tencent.com",
+        "ntp2.tencent.com",
+        "ntp3.tencent.com",
+        "ntp4.tencent.com",
+        "ntp5.tencent.com",
+        "ntp1.aliyun.com" ,
+        "ntp2.aliyun.com" ,
+        "ntp3.aliyun.com" ,
+        "ntp4.aliyun.com" ,
+        "ntp5.aliyun.com" ,
+        "ntp6.aliyun.com" ,
+        "ntp7.aliyun.com" ,
+        "time.edu.cn"     ,
+        "s2c.time.edu.cn" ,
+        "s2f.time.edu.cn" ,
+        "s2k.time.edu.cn" ,
         X_NULL
     };
 
@@ -70,35 +63,37 @@ int main(int argc, char * argv[])
 
     for (xit_iter = 0; X_NULL != xszt_host[xit_iter]; ++xit_iter)
     {
-        xtm_meter = ntp_get_time(xszt_host[xit_iter], NTP_PORT, 5000);
-        if (!XTIME_METER_INVALID(xtm_meter))
+        xtm_unsec = ntp_get_time(xszt_host[xit_iter], NTP_PORT, 5000);
+        if (!XTIME_UNSEC_INVALID(xtm_unsec))
         {
-            xtm_sctxt = time_cntxt();
-            xtm_cntxt = time_mtc(xtm_meter);
+            xtm_system = time_descr();
+            xtm_descr = time_utod(xtm_unsec);
 
-            printf("%-26s : [%04d-%02d-%02d %d %02d:%02d:%02d.%03d] "
-                         "- [%04d-%02d-%02d %d %02d:%02d:%02d.%03d]\n",
-                   xszt_host[xit_iter] ,
-                   xtm_cntxt.ctx_year  ,
-                   xtm_cntxt.ctx_month ,
-                   xtm_cntxt.ctx_day   ,
-                   xtm_cntxt.ctx_week  ,
-                   xtm_cntxt.ctx_hour  ,
-                   xtm_cntxt.ctx_minute,
-                   xtm_cntxt.ctx_second,
-                   xtm_cntxt.ctx_msec  ,
-                   xtm_sctxt.ctx_year  ,
-                   xtm_sctxt.ctx_month ,
-                   xtm_sctxt.ctx_day   ,
-                   xtm_sctxt.ctx_week  ,
-                   xtm_sctxt.ctx_hour  ,
-                   xtm_sctxt.ctx_minute,
-                   xtm_sctxt.ctx_second,
-                   xtm_sctxt.ctx_msec  );
+            printf("%-16s : [0x%016llX, 0x%016llX][%04d-%02d-%02d %d %02d:%02d:%02d.%03d] "
+                                               "- [%04d-%02d-%02d %d %02d:%02d:%02d.%03d]\n",
+                   xszt_host[xit_iter]  ,
+                   xtm_unsec           ,
+                   xtm_descr.ctx_value ,
+                   xtm_descr.ctx_year  ,
+                   xtm_descr.ctx_month ,
+                   xtm_descr.ctx_day   ,
+                   xtm_descr.ctx_week  ,
+                   xtm_descr.ctx_hour  ,
+                   xtm_descr.ctx_minute,
+                   xtm_descr.ctx_second,
+                   xtm_descr.ctx_msec  ,
+                   xtm_system.ctx_year  ,
+                   xtm_system.ctx_month ,
+                   xtm_system.ctx_day   ,
+                   xtm_system.ctx_week  ,
+                   xtm_system.ctx_hour  ,
+                   xtm_system.ctx_minute,
+                   xtm_system.ctx_second,
+                   xtm_system.ctx_msec  );
         }
         else
         {
-            printf("%-26s : errno = %d\n", xszt_host[xit_iter], errno);
+            printf("%-16s : errno = %d\n", xszt_host[xit_iter], errno);
         }
     }
 

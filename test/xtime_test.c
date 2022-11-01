@@ -37,23 +37,23 @@
 
 int main(int argc, char * argv[])
 {
-    xtime_meter_t xtime_meter = time_meter();
-    xtime_cntxt_t xtime_cntxt = time_cntxt();
+    xtime_unsec_t xtm_unsec = time_unsec();
+    xtime_descr_t xtm_descr = time_descr();
 
-    printf("sizeof(xtime_meter_t) = %d\n", (x_int32_t)sizeof(xtime_meter_t));
-    printf("sizeof(xtime_cntxt_t) = %d\n", (x_int32_t)sizeof(xtime_cntxt_t));
+    printf("sizeof(xtime_unsec_t) = %d\n", (x_int32_t)sizeof(xtime_unsec_t));
+    printf("sizeof(xtime_descr_t) = %d\n", (x_int32_t)sizeof(xtime_descr_t));
 
-    printf("[%llu, %llu] %04d-%02d-%02d %d %02d:%02d:%02d.%03d\n",
-           xtime_meter,
-           xtime_cntxt.ctx_value,
-           xtime_cntxt.ctx_year,
-           xtime_cntxt.ctx_month,
-           xtime_cntxt.ctx_day,
-           xtime_cntxt.ctx_week,
-           xtime_cntxt.ctx_hour,
-           xtime_cntxt.ctx_minute,
-           xtime_cntxt.ctx_second,
-           xtime_cntxt.ctx_msec);
+    printf("[%llu, 0x%016llX] %04d-%02d-%02d %d %02d:%02d:%02d.%03d\n",
+           xtm_unsec,
+           xtm_descr.ctx_value,
+           xtm_descr.ctx_year,
+           xtm_descr.ctx_month,
+           xtm_descr.ctx_day,
+           xtm_descr.ctx_week,
+           xtm_descr.ctx_hour,
+           xtm_descr.ctx_minute,
+           xtm_descr.ctx_second,
+           xtm_descr.ctx_msec);
 
     return 0;
 }

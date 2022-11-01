@@ -50,51 +50,42 @@ extern "C" {
 // 
 
 /** 以 100纳秒 为单位，1970-01-01 00:00:00 至今的 时间计量值 类型 */
-typedef x_uint64_t xtime_meter_t;
+typedef x_uint64_t xtime_unsec_t;
 
 /**
- * @struct xtime_cntxt_t
- * @brief  时间描述信息结构体（共计 64 位）。
+ * @struct xtime_descr_t
+ * @brief  时间描述信息的联合体类型（共计 64 位）。
  */
-typedef union xtime_cntxt_t
+typedef union xtime_descr_t
 {
-    /** 64位值 */
+    /** 对齐的 64位 整数值 */
     x_uint64_t ctx_value;
 
-    /** 详细时间信息 */
+    /** 描述信息的上下文描述结构体 */
     struct
     {
-    x_uint32_t _year   : 16;  ///< 年
-    x_uint32_t _month  :  6;  ///< 月
-    x_uint32_t _day    :  6;  ///< 日
-    x_uint32_t _week   :  4;  ///< 周几
-    x_uint32_t _hour   :  6;  ///< 时
-    x_uint32_t _minute :  6;  ///< 分
-    x_uint32_t _second :  6;  ///< 秒
-    x_uint32_t _msec   : 14;  ///< 毫秒
-    } ctx;
+    x_uint32_t ctx_year   : 16;  ///< 年
+    x_uint32_t ctx_month  :  6;  ///< 月
+    x_uint32_t ctx_day    :  6;  ///< 日
+    x_uint32_t ctx_week   :  4;  ///< 周几
+    x_uint32_t ctx_hour   :  6;  ///< 时
+    x_uint32_t ctx_minute :  6;  ///< 分
+    x_uint32_t ctx_second :  6;  ///< 秒
+    x_uint32_t ctx_msec   : 14;  ///< 毫秒
+    };
+} xtime_descr_t;
 
-#define ctx_year   ctx._year
-#define ctx_month  ctx._month
-#define ctx_day    ctx._day
-#define ctx_week   ctx._week
-#define ctx_hour   ctx._hour
-#define ctx_minute ctx._minute
-#define ctx_second ctx._second
-#define ctx_msec   ctx._msec
-} xtime_cntxt_t;
-
-/** 无效的时间计量值 */
-extern const xtime_meter_t XTIME_INVALID_METER;
+/** 定义无效的 时间计量值 */
+#define XTIME_INVALID_UNSEC           ((xtime_unsec_t)~0ULL)
 
 /** 判断 时间计量值 是否为 无效 */
-#define XTIME_METER_INVALID(xmeter)  (XTIME_INVALID_METER == (xmeter))
+#define XTIME_UNSEC_INVALID(xunsec)   (XTIME_INVALID_UNSEC == (xunsec))
 
-/** 无效的时间描述信息 */
-extern const xtime_cntxt_t XTIME_INVALID_CNTXT;
+/** 定义无效的 时间描述信息 值 */
+#define XTIME_INVALID_DESCR           (0ULL)
 
 /** 判断 时间描述信息 是否为 无效 */
-#define XTIME_CNTXT_INVALID(xcntxt)  (XTIME_INVALID_CNTXT.ctx_value == (xcntxt).ctx_value)
+#define XTIME_DESCR_INVALID(xdescr)   (XTIME_INVALID_DESCR == (xdescr).ctx_value)
 
 //====================================================================
 
@@ -106,35 +97,35 @@ extern const xtime_cntxt_t XTIME_INVALID_CNTXT;
 /**
  * @brief 获取当前系统的 时间计量值。
  */
-xtime_meter_t time_meter(void);
+xtime_unsec_t time_unsec(void);
 
 /**********************************************************/
 /**
  * @brief 获取当前系统的 时间描述信息。
  */
-xtime_cntxt_t time_cntxt(void);
+xtime_descr_t time_descr(void);
 
 /**********************************************************/
 /**
  * @brief 将 时间描述信息 转换为 时间计量值。
  * 
- * @param [in ] xtm_cntxt : 待转换的 时间描述信息。
+ * @param [in ] xtm_descr : 待转换的 时间描述信息。
  * 
- * @return xtime_meter_t : 
- * 返回 时间计量值，可用 XTIME_METER_INVALID() 判断其是否为无效值。
+ * @return xtime_unsec_t : 
+ * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断其是否为无效值。
  */
-xtime_meter_t time_ctm(xtime_cntxt_t xtm_cntxt);
+xtime_unsec_t time_dtou(xtime_descr_t xtm_descr);
 
 /**********************************************************/
 /**
- * @brief 将 时间描述信息 转换为 时间计量值。
+ * @brief 将 时间计量值 转换为 时间描述信息。
  * 
- * @param [in ] xtm_meter : 待转换的 时间计量值。
+ * @param [in ] xtm_unsec : 待转换的 时间计量值。
  * 
- * @return xtime_cntxt_t : 
- * 返回 时间描述信息，可用 XTIME_CNTXT_INVALID() 判断其是否为无效。
+ * @return xtime_descr_t : 
+ * 返回 时间描述信息，可用 XTIME_DESCR_INVALID() 判断其是否为无效。
  */
-xtime_cntxt_t time_mtc(xtime_meter_t xtm_meter);
+xtime_descr_t time_utod(xtime_unsec_t xtm_unsec);
 
 ////////////////////////////////////////////////////////////////////////////////
 
