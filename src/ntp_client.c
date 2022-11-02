@@ -139,10 +139,16 @@ typedef struct xntp_pack_t
     x_uint32_t    xut_rootdisp ;  ///< 系统时钟相对于主参考时钟的最大误差
     x_uint32_t    xut_refid    ;  ///< 参考时钟源的标识
 
+    /**
+     * T1，客户端发送请求时的 本地系统时间戳；
+     * T2，服务端接收到客户端请求时的 本地系统时间戳；
+     * T3，服务端发送应答数据包时的 本地系统时间戳；
+     * T4，客户端接收到服务端应答数据包时的 本地系统时间戳。
+     */
     xtime_stamp_t xtms_reference; ///< 系统时钟最后一次被设定或更新的时间
-    xtime_stamp_t xtms_originate; ///< 
-    xtime_stamp_t xtms_receive  ; ///< 
-    xtime_stamp_t xtms_transmit ; ///< 
+    xtime_stamp_t xtms_originate; ///< 服务端应答时，将客户端请求时的 T1 返送回去
+    xtime_stamp_t xtms_receive  ; ///< 服务端接收到客户端请求时的 本地系统时间戳 T2
+    xtime_stamp_t xtms_transmit ; ///< 客户端请求时 发送 T1，服务端应答时 回复 T3
 
 #else
     x_uchar_t     xct_lvmflag;    ///< peer leap indicator: leap, version, mode
@@ -464,6 +470,11 @@ static x_int32_t ntp_get_4T(
     {
         //======================================
 
+        xtm_4time[0] = XTIME_INVALID_UNSEC;
+        xtm_4time[1] = XTIME_INVALID_UNSEC;
+        xtm_4time[2] = XTIME_INVALID_UNSEC;
+        xtm_4time[3] = XTIME_INVALID_UNSEC;
+
         if ((X_NULL == xszt_host) || (xut_tmout <= 0))
         {
             xit_errno = EINVAL;
@@ -497,7 +508,7 @@ static x_int32_t ntp_get_4T(
         xtm_4time[0] = time_unsec();
 
         // NTP请求报文离开发送端时发送端的本地时间
-        XTIME_UTOS(xtm_4time[0], xnpt_packet.xtms_originate);
+        XTIME_UTOS(xtm_4time[0], xnpt_packet.xtms_transmit);
 
         // 转成网络字节序
         ntp_hton_packet(&xnpt_packet);
@@ -528,6 +539,9 @@ static x_int32_t ntp_get_4T(
                         0,
                         (struct sockaddr *)&xhost_addr,
                         (socklen_t *)&xit_addrlen);
+        // T4
+        xtm_4time[3] = time_unsec();
+
         if (xit_errno < 0)
         {
             xit_errno = ntp_sockfd_errno();
@@ -540,9 +554,6 @@ static x_int32_t ntp_get_4T(
             xit_errno = ENODATA;
             break;
         }
-
-        // T4
-        xtm_4time[3] = time_unsec();
 
         // 转成主机字节序
         ntp_ntoh_packet(&xnpt_packet);
@@ -656,6 +667,11 @@ static x_int32_t ntp_get_4T_by_name(
 /**********************************************************/
 /**
  * @brief 计算最后的结果，公式：T = T4 + ((T2 - T1) + (T3 - T4)) / 2;
+ * @note
+ * T1，客户端发送请求时的 本地系统时间戳；
+ * T2，服务端接收到客户端请求时的 本地系统时间戳；
+ * T3，服务端发送应答数据包时的 本地系统时间戳；
+ * T4，客户端接收到服务端应答数据包时的 本地系统时间戳。
  */
 xtime_unsec_t ntp_calc_4T(xtime_unsec_t xtm_4time[4])
 {
