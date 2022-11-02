@@ -31,13 +31,12 @@
  */
 
 #include "xtime.h"
+#include <time.h>
 
 #if (defined(_WIN32) || defined(_WIN64))
 #include <windows.h>
-#include <time.h>
 #elif (defined(__linux__) || defined(__unix__))
 #include <sys/time.h>
-#include <time.h>
 #else // UNKNOW
 #error "unknow platform!"
 #endif // PLATFORM
@@ -76,14 +75,14 @@ xtime_unsec_t time_unsec(void)
 
 #if (defined(_WIN32) || defined(_WIN64))
 
-    FILETIME       xtime_file;
-    ULARGE_INTEGER xtime_value;
+    FILETIME       xtm_sfile;
+    ULARGE_INTEGER xtm_value;
 
-    GetSystemTimeAsFileTime(&xtime_file);
-    xtime_value.LowPart  = xtime_file.dwLowDateTime;
-    xtime_value.HighPart = xtime_file.dwHighDateTime;
+    GetSystemTimeAsFileTime(&xtm_sfile);
+    xtm_value.LowPart  = xtm_sfile.dwLowDateTime;
+    xtm_value.HighPart = xtm_sfile.dwHighDateTime;
 
-    xtm_unsec = (xtime_unsec_t)(xtime_value.QuadPart - XTIME_UNSEC_1601_1970);
+    xtm_unsec = (xtime_unsec_t)(xtm_value.QuadPart - XTIME_UNSEC_1601_1970);
 
 #elif (defined(__linux__) || defined(__unix__))
 
@@ -105,7 +104,48 @@ xtime_unsec_t time_unsec(void)
  */
 xtime_descr_t time_descr(void)
 {
-    return time_utod(time_unsec());
+    xtime_descr_t xtm_descr = { XTIME_INVALID_DESCR };
+
+#if (defined(_WIN32) || defined(_WIN64))
+
+    SYSTEMTIME xtm_local;
+
+    GetLocalTime(&xtm_local);
+
+    xtm_descr.ctx_year   = xtm_local.wYear        ;
+    xtm_descr.ctx_month  = xtm_local.wMonth       ;
+    xtm_descr.ctx_day    = xtm_local.wDay         ;
+    xtm_descr.ctx_week   = xtm_local.wDayOfWeek   ;
+    xtm_descr.ctx_hour   = xtm_local.wHour        ;
+    xtm_descr.ctx_minute = xtm_local.wMinute      ;
+    xtm_descr.ctx_second = xtm_local.wSecond      ;
+    xtm_descr.ctx_msec   = xtm_local.wMilliseconds;
+
+#elif (defined(__linux__) || defined(__unix__))
+
+    time_t         xtm_time;
+    struct tm      xtm_local;
+    struct timeval xtm_value;
+
+    gettimeofday(&xtm_value, X_NULL);
+
+    xtm_time = (time_t)(xtm_value.tv_sec);
+    localtime_r(&xtm_time, &xtm_local);
+
+    xtm_descr.ctx_year   = xtm_local.tm_year + 1900;
+    xtm_descr.ctx_month  = xtm_local.tm_mon  + 1   ;
+    xtm_descr.ctx_day    = xtm_local.tm_mday       ;
+    xtm_descr.ctx_week   = xtm_local.tm_wday       ;
+    xtm_descr.ctx_hour   = xtm_local.tm_hour       ;
+    xtm_descr.ctx_minute = xtm_local.tm_min        ;
+    xtm_descr.ctx_second = xtm_local.tm_sec        ;
+    xtm_descr.ctx_msec   = (x_uint32_t)(xtm_value.tv_usec / 1000);
+
+#else // UNKNOW
+#error "unknow platform!"
+#endif // PLATFORM
+
+    return xtm_descr;
 }
 
 /**********************************************************/
@@ -130,53 +170,53 @@ xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
         (xtm_descr.ctx_second >   59) ||
         (xtm_descr.ctx_msec   >  999))
     {
-        return XTIME_INVALID_METER;
+        return XTIME_INVALID_UNSEC;
     }
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
 
-    ULARGE_INTEGER xtime_value;
-    FILETIME       xtime_sfile;
-    FILETIME       xtime_lfile;
-    SYSTEMTIME     xtime_system;
+    ULARGE_INTEGER xtm_value;
+    FILETIME       xtm_sfile;
+    FILETIME       xtm_lfile;
+    SYSTEMTIME     xtm_local;
 
-    xtime_system.wYear         = xtm_descr.ctx_year  ;
-    xtime_system.wMonth        = xtm_descr.ctx_month ;
-    xtime_system.wDay          = xtm_descr.ctx_day   ;
-    xtime_system.wDayOfWeek    = xtm_descr.ctx_week  ;
-    xtime_system.wHour         = xtm_descr.ctx_hour  ;
-    xtime_system.wMinute       = xtm_descr.ctx_minute;
-    xtime_system.wSecond       = xtm_descr.ctx_second;
-    xtime_system.wMilliseconds = xtm_descr.ctx_msec  ;
+    xtm_local.wYear         = xtm_descr.ctx_year  ;
+    xtm_local.wMonth        = xtm_descr.ctx_month ;
+    xtm_local.wDay          = xtm_descr.ctx_day   ;
+    xtm_local.wDayOfWeek    = xtm_descr.ctx_week  ;
+    xtm_local.wHour         = xtm_descr.ctx_hour  ;
+    xtm_local.wMinute       = xtm_descr.ctx_minute;
+    xtm_local.wSecond       = xtm_descr.ctx_second;
+    xtm_local.wMilliseconds = xtm_descr.ctx_msec  ;
 
-    if (SystemTimeToFileTime(&xtime_system, &xtime_lfile))
+    if (SystemTimeToFileTime(&xtm_local, &xtm_lfile))
     {
-        if (LocalFileTimeToFileTime(&xtime_lfile, &xtime_sfile))
+        if (LocalFileTimeToFileTime(&xtm_lfile, &xtm_sfile))
         {
-            xtime_value.LowPart  = xtime_sfile.dwLowDateTime ;
-            xtime_value.HighPart = xtime_sfile.dwHighDateTime;
+            xtm_value.LowPart  = xtm_sfile.dwLowDateTime ;
+            xtm_value.HighPart = xtm_sfile.dwHighDateTime;
 
-            xtm_unsec = (xtime_unsec_t)(xtime_value.QuadPart - XTIME_UNSEC_1601_1970);
+            xtm_unsec = (xtime_unsec_t)(xtm_value.QuadPart - XTIME_UNSEC_1601_1970);
         }
     }
 
 #elif (defined(__linux__) || defined(__unix__))
 
-    struct tm      xtm_system;
+    struct tm      xtm_local;
     struct timeval xtm_value;
 
-    xtm_system.tm_sec   = xtm_descr.ctx_second;
-    xtm_system.tm_min   = xtm_descr.ctx_minute;
-    xtm_system.tm_hour  = xtm_descr.ctx_hour  ;
-    xtm_system.tm_mday  = xtm_descr.ctx_day   ;
-    xtm_system.tm_mon   = xtm_descr.ctx_month - 1   ;
-    xtm_system.tm_year  = xtm_descr.ctx_year  - 1900;
-    xtm_system.tm_wday  = 0;
-    xtm_system.tm_yday  = 0;
-    xtm_system.tm_isdst = 0;
+    xtm_local.tm_sec   = xtm_descr.ctx_second;
+    xtm_local.tm_min   = xtm_descr.ctx_minute;
+    xtm_local.tm_hour  = xtm_descr.ctx_hour  ;
+    xtm_local.tm_mday  = xtm_descr.ctx_day   ;
+    xtm_local.tm_mon   = xtm_descr.ctx_month - 1   ;
+    xtm_local.tm_year  = xtm_descr.ctx_year  - 1900;
+    xtm_local.tm_wday  = 0;
+    xtm_local.tm_yday  = 0;
+    xtm_local.tm_isdst = 0;
 
-    xtm_value.tv_sec  = mktime(&xtm_system);
+    xtm_value.tv_sec  = mktime(&xtm_local);
     xtm_value.tv_usec = xtm_descr.ctx_msec * 1000;
     if (-1 != xtm_value.tv_sec)
     {
@@ -205,46 +245,42 @@ xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
 
 #if (defined(_WIN32) || defined(_WIN64))
 
-    ULARGE_INTEGER xtime_value;
-    FILETIME       xtime_sfile;
-    FILETIME       xtime_lfile;
-    SYSTEMTIME     xtime_system;
+    ULARGE_INTEGER xtm_value;
+    FILETIME       xtm_sfile;
+    FILETIME       xtm_lfile;
+    SYSTEMTIME     xtm_local;
 
-    xtime_value.QuadPart       = xtm_unsec + XTIME_UNSEC_1601_1970;
-    xtime_sfile.dwLowDateTime  = xtime_value.LowPart;
-    xtime_sfile.dwHighDateTime = xtime_value.HighPart;
-    if (!FileTimeToLocalFileTime(&xtime_sfile, &xtime_lfile))
+    xtm_value.QuadPart       = xtm_unsec + XTIME_UNSEC_1601_1970;
+    xtm_sfile.dwLowDateTime  = xtm_value.LowPart;
+    xtm_sfile.dwHighDateTime = xtm_value.HighPart;
+    if (FileTimeToLocalFileTime(&xtm_sfile, &xtm_lfile))
     {
-        return xtm_descr;
+        if (FileTimeToSystemTime(&xtm_lfile, &xtm_local))
+        {
+            xtm_descr.ctx_year   = xtm_local.wYear        ;
+            xtm_descr.ctx_month  = xtm_local.wMonth       ;
+            xtm_descr.ctx_day    = xtm_local.wDay         ;
+            xtm_descr.ctx_week   = xtm_local.wDayOfWeek   ;
+            xtm_descr.ctx_hour   = xtm_local.wHour        ;
+            xtm_descr.ctx_minute = xtm_local.wMinute      ;
+            xtm_descr.ctx_second = xtm_local.wSecond      ;
+            xtm_descr.ctx_msec   = xtm_local.wMilliseconds;
+        }
     }
-
-    if (!FileTimeToSystemTime(&xtime_lfile, &xtime_system))
-    {
-        return xtm_descr;
-    }
-
-    xtm_descr.ctx_year   = xtime_system.wYear        ;
-    xtm_descr.ctx_month  = xtime_system.wMonth       ;
-    xtm_descr.ctx_day    = xtime_system.wDay         ;
-    xtm_descr.ctx_week   = xtime_system.wDayOfWeek   ;
-    xtm_descr.ctx_hour   = xtime_system.wHour        ;
-    xtm_descr.ctx_minute = xtime_system.wMinute      ;
-    xtm_descr.ctx_second = xtime_system.wSecond      ;
-    xtm_descr.ctx_msec   = xtime_system.wMilliseconds;
 
 #elif (defined(__linux__) || defined(__unix__))
 
-    struct tm xtm_system;
+    struct tm xtm_local;
     time_t xtm_time = (time_t)(xtm_unsec / 10000000ULL);
-    localtime_r(&xtm_time, &xtm_system);
+    localtime_r(&xtm_time, &xtm_local);
 
-    xtm_descr.ctx_year   = xtm_system.tm_year + 1900;
-    xtm_descr.ctx_month  = xtm_system.tm_mon  + 1   ;
-    xtm_descr.ctx_day    = xtm_system.tm_mday       ;
-    xtm_descr.ctx_week   = xtm_system.tm_wday       ;
-    xtm_descr.ctx_hour   = xtm_system.tm_hour       ;
-    xtm_descr.ctx_minute = xtm_system.tm_min        ;
-    xtm_descr.ctx_second = xtm_system.tm_sec        ;
+    xtm_descr.ctx_year   = xtm_local.tm_year + 1900;
+    xtm_descr.ctx_month  = xtm_local.tm_mon  + 1   ;
+    xtm_descr.ctx_day    = xtm_local.tm_mday       ;
+    xtm_descr.ctx_week   = xtm_local.tm_wday       ;
+    xtm_descr.ctx_hour   = xtm_local.tm_hour       ;
+    xtm_descr.ctx_minute = xtm_local.tm_min        ;
+    xtm_descr.ctx_second = xtm_local.tm_sec        ;
     xtm_descr.ctx_msec   = (x_uint32_t)((xtm_unsec % 10000000ULL) / 10000L);
 
 #else // UNKNOW
