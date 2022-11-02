@@ -20,39 +20,39 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
+//======================================
+// 常用的 NTP 服务器地址列表
+
+x_int32_t   xit_iter = 0;
+x_cstring_t xszt_host[] =
+{
+    "ntp.tencent.com" ,
+    "ntp1.tencent.com",
+    "ntp2.tencent.com",
+    "ntp3.tencent.com",
+    "ntp4.tencent.com",
+    "ntp5.tencent.com",
+    "ntp1.aliyun.com" ,
+    "ntp2.aliyun.com" ,
+    "ntp3.aliyun.com" ,
+    "ntp4.aliyun.com" ,
+    "ntp5.aliyun.com" ,
+    "ntp6.aliyun.com" ,
+    "ntp7.aliyun.com" ,
+    "time.edu.cn"     ,
+    "s2c.time.edu.cn" ,
+    "s2f.time.edu.cn" ,
+    "s2k.time.edu.cn" ,
+    X_NULL
+};
+
+//======================================
+
 int main(int argc, char * argv[])
 {
     xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
     xtime_descr_t xtm_descr = { XTIME_INVALID_DESCR };
     xtime_descr_t xtm_local = { XTIME_INVALID_DESCR };
-
-    //======================================
-    // 常用的 NTP 服务器地址列表
-
-    x_int32_t   xit_iter = 0;
-    x_cstring_t xszt_host[] =
-    {
-        "ntp.tencent.com" ,
-        "ntp1.tencent.com",
-        "ntp2.tencent.com",
-        "ntp3.tencent.com",
-        "ntp4.tencent.com",
-        "ntp5.tencent.com",
-        "ntp1.aliyun.com" ,
-        "ntp2.aliyun.com" ,
-        "ntp3.aliyun.com" ,
-        "ntp4.aliyun.com" ,
-        "ntp5.aliyun.com" ,
-        "ntp6.aliyun.com" ,
-        "ntp7.aliyun.com" ,
-        "time.edu.cn"     ,
-        "s2c.time.edu.cn" ,
-        "s2f.time.edu.cn" ,
-        "s2k.time.edu.cn" ,
-        X_NULL
-    };
-
-    //======================================
 
 #if defined(_WIN32) || defined(_WIN64)
     WSADATA wsaData;
@@ -71,27 +71,13 @@ int main(int argc, char * argv[])
             xtm_local = time_descr();
             xtm_descr = time_utod(xtm_unsec);
 
-            printf("%-16s : [0x%016llX, 0x%016llX][%04d-%02d-%02d %d %02d:%02d:%02d.%03d] "
-                                               "- [%04d-%02d-%02d %d %02d:%02d:%02d.%03d]\n",
-                   xszt_host[xit_iter] ,
-                   xtm_unsec           ,
-                   xtm_descr.ctx_value ,
-                   xtm_descr.ctx_year  ,
-                   xtm_descr.ctx_month ,
-                   xtm_descr.ctx_day   ,
-                   xtm_descr.ctx_week  ,
-                   xtm_descr.ctx_hour  ,
-                   xtm_descr.ctx_minute,
-                   xtm_descr.ctx_second,
-                   xtm_descr.ctx_msec  ,
-                   xtm_local.ctx_year  ,
-                   xtm_local.ctx_month ,
-                   xtm_local.ctx_day   ,
-                   xtm_local.ctx_week  ,
-                   xtm_local.ctx_hour  ,
-                   xtm_local.ctx_minute,
-                   xtm_local.ctx_second,
-                   xtm_local.ctx_msec  );
+            printf("%-16s : [0x%016llX, 0x%016llX] [%04d-%02d-%02d %d %02d:%02d:%02d.%03d] "
+                                                "- [%04d-%02d-%02d %d %02d:%02d:%02d.%03d]\n\n",
+                   xszt_host[xit_iter] , xtm_unsec           , xtm_descr.ctx_value ,
+                   xtm_descr.ctx_year  , xtm_descr.ctx_month , xtm_descr.ctx_day   , xtm_descr.ctx_week  ,
+                   xtm_descr.ctx_hour  , xtm_descr.ctx_minute, xtm_descr.ctx_second, xtm_descr.ctx_msec  ,
+                   xtm_local.ctx_year  , xtm_local.ctx_month , xtm_local.ctx_day   , xtm_local.ctx_week  ,
+                   xtm_local.ctx_hour  , xtm_local.ctx_minute, xtm_local.ctx_second, xtm_local.ctx_msec  );
         }
         else
         {
@@ -121,27 +107,13 @@ int main(int argc, char * argv[])
                 xtm_local = time_descr();
                 xtm_descr = time_utod(xtm_unsec);
 
-                printf("%-16s : [0x%016llX, 0x%016llX][%04d-%02d-%02d %d %02d:%02d:%02d.%03d] "
-                                                "- [%04d-%02d-%02d %d %02d:%02d:%02d.%03d]\n\n",
-                    xszt_host[xit_iter] ,
-                    xtm_unsec           ,
-                    xtm_descr.ctx_value ,
-                    xtm_descr.ctx_year  ,
-                    xtm_descr.ctx_month ,
-                    xtm_descr.ctx_day   ,
-                    xtm_descr.ctx_week  ,
-                    xtm_descr.ctx_hour  ,
-                    xtm_descr.ctx_minute,
-                    xtm_descr.ctx_second,
-                    xtm_descr.ctx_msec  ,
-                    xtm_local.ctx_year  ,
-                    xtm_local.ctx_month ,
-                    xtm_local.ctx_day   ,
-                    xtm_local.ctx_week  ,
-                    xtm_local.ctx_hour  ,
-                    xtm_local.ctx_minute,
-                    xtm_local.ctx_second,
-                    xtm_local.ctx_msec  );
+                printf("%-16s : [0x%016llX, 0x%016llX] [%04d-%02d-%02d %d %02d:%02d:%02d.%03d] "
+                                                    "- [%04d-%02d-%02d %d %02d:%02d:%02d.%03d]\n\n",
+                       xszt_host[xit_iter] , xtm_unsec           , xtm_descr.ctx_value ,
+                       xtm_descr.ctx_year  , xtm_descr.ctx_month , xtm_descr.ctx_day   , xtm_descr.ctx_week  ,
+                       xtm_descr.ctx_hour  , xtm_descr.ctx_minute, xtm_descr.ctx_second, xtm_descr.ctx_msec  ,
+                       xtm_local.ctx_year  , xtm_local.ctx_month , xtm_local.ctx_day   , xtm_local.ctx_week  ,
+                       xtm_local.ctx_hour  , xtm_local.ctx_minute, xtm_local.ctx_second, xtm_local.ctx_msec  );
             }
             else
             {
