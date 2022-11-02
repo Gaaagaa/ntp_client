@@ -60,10 +60,12 @@ int main(int argc, char * argv[])
 #endif // defined(_WIN32) || defined(_WIN64)
 
     //======================================
+
 #if 0
+
     for (xit_iter = 0; X_NULL != xszt_host[xit_iter]; ++xit_iter)
     {
-        xtm_unsec = ntp_get_time(xszt_host[xit_iter], NTP_PORT, 5000);
+        xtm_unsec = ntpcli_get_time(xszt_host[xit_iter], NTP_PORT, 5000);
         if (!XTIME_UNSEC_INVALID(xtm_unsec))
         {
             xtm_local = time_descr();
@@ -96,6 +98,7 @@ int main(int argc, char * argv[])
             printf("%-16s : errno = %d\n", xszt_host[xit_iter], errno);
         }
     }
+
 #else
 
     xntp_cliptr_t xntp_this = X_NULL;

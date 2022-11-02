@@ -156,6 +156,7 @@ typedef struct xntp_pack_t
     xtime_stamp_t xtms_transmit ; ///< 客户端请求时 发送 T1，服务端应答时 回复 T3
 
 #else
+
     x_uchar_t     xct_lvmflag;    ///< peer leap indicator: leap, version, mode
     x_uchar_t     xct_stratum;    ///< peer stratum
     x_uchar_t     xct_ppoll;      ///< peer poll interval
@@ -211,11 +212,14 @@ typedef struct xntp_pack_t
 // 定义相关的调试信息输出接口
 // 
 
-#define XNTP_DBG_OUTPUT
 #ifdef XNTP_DBG_OUTPUT
 
 #include <stdio.h>
 
+/**********************************************************/
+/**
+ * @brief 输出 100ns 为单位 的 具体时间信息。
+ */
 static x_void_t output_ns(xtime_unsec_t xtm_unsec)
 {
     xtime_descr_t xtm_descr = time_utod(xtm_unsec);
@@ -230,6 +234,10 @@ static x_void_t output_ns(xtime_unsec_t xtm_unsec)
            xtm_descr.ctx_msec  );
 }
 
+/**********************************************************/
+/**
+ * @brief 输出 NTP 时间戳 的 具体时间信息。
+ */
 static x_void_t output_ts(xtime_stamp_t * xtm_stamp)
 {
     xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
@@ -237,6 +245,10 @@ static x_void_t output_ts(xtime_stamp_t * xtm_stamp)
     output_ns(xtm_unsec);
 }
 
+/**********************************************************/
+/**
+ * @brief 打上信息标号，输出 100ns 为单位 的 具体时间信息。
+ */
 static x_void_t output_tu(x_cstring_t xszt_info, xtime_unsec_t xtm_unsec)
 {
     printf("%s : ", xszt_info);
@@ -244,6 +256,10 @@ static x_void_t output_tu(x_cstring_t xszt_info, xtime_unsec_t xtm_unsec)
     printf("\n");
 }
 
+/**********************************************************/
+/**
+ * @brief 打上信息标号，输出 NTP 时间戳 的 具体时间信息。
+ */
 static x_void_t output_tm(x_cstring_t xszt_info, xtime_stamp_t * xtm_stamp)
 {
     printf("%s : ", xszt_info);
@@ -255,10 +271,8 @@ static x_void_t output_tm(x_cstring_t xszt_info, xtime_stamp_t * xtm_stamp)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-//====================================================================
-
 // 
-// NTP 内部相关的操作接口
+// 一些相关辅助操作的接口
 // 
 
 /**********************************************************/
@@ -338,7 +352,7 @@ static x_bool_t name_is_ipv4(x_cstring_t xszt_name, x_uint32_t * xut_value)
 /**
  * @brief 返回套接字当前操作失败的错误码。
  */
-static x_int32_t ntp_sockfd_errno()
+static x_int32_t sockfd_errno()
 {
 #ifdef _MSC_VER
     return (x_int32_t)WSAGetLastError();
@@ -355,7 +369,7 @@ static x_int32_t ntp_sockfd_errno()
  * 
  * @return x_int32_t : 成功，返回 0；失败，返回 错误码。
  */
-static x_int32_t ntp_sockfd_nbio(x_sockfd_t xfdt_sockfd)
+static x_int32_t sockfd_nbio(x_sockfd_t xfdt_sockfd)
 {
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -376,11 +390,11 @@ static x_int32_t ntp_sockfd_nbio(x_sockfd_t xfdt_sockfd)
 
 /**********************************************************/
 /**
- * @brief 设置套接字的 数据收发超时时间。
+ * @brief 设置套接字的 数据收发缓存的 超时时间。
  * 
  * @param [in ] xut_tmout : 超时时间（单位为 毫秒）。
  */
-static x_void_t ntp_sockfd_tmout(x_sockfd_t xfdt_sockfd, x_uint32_t xut_tmout)
+static x_void_t sockfd_rwbuf_tmout(x_sockfd_t xfdt_sockfd, x_uint32_t xut_tmout)
 {
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -427,7 +441,7 @@ static x_void_t ntp_sockfd_tmout(x_sockfd_t xfdt_sockfd, x_uint32_t xut_tmout)
 /**
  * @brief 关闭套接字。
  */
-static x_int32_t ntp_sockfd_close(x_sockfd_t xfdt_sockfd)
+static x_int32_t sockfd_close(x_sockfd_t xfdt_sockfd)
 {
 #if (defined(_WIN32) || defined(_WIN64))
     return closesocket(xfdt_sockfd);
@@ -436,17 +450,26 @@ static x_int32_t ntp_sockfd_close(x_sockfd_t xfdt_sockfd)
 #endif // (defined(_WIN32) || defined(_WIN64))
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+// 
+// NTP 相关辅助操作的接口
+// 
+
 /**********************************************************/
 /**
  * @brief 初始化 NTP 的请求数据包。
  */
-static x_void_t ntp_init_request_packet(xntp_pack_t * xnpt_dptr)
+static x_void_t ntp_init_req_packet(xntp_pack_t * xnpt_dptr)
 {
-    const x_uchar_t xct_leap = 0;
-    const x_uchar_t xct_ver  = 3;
-    const x_uchar_t xct_mode = ntp_mode_client;
+/*
+ * Stuff for putting things back into li_vn_mode in packets and vn_mode
+ * in ntp_monitor.c's mon_entry.
+ */
+#define NTP_VN_MODE(v, m)		((((v) & 7) << 3) | ((m) & 0x7))
+#define	NTP_LI_VN_MODE(l, v, m) ((((l) & 3) << 6) | NTP_VN_MODE((v), (m)))
 
-    xnpt_dptr->xct_lvmflag   = (xct_leap << 6) | (xct_ver << 3) | (xct_mode << 0);
+    xnpt_dptr->xct_lvmflag   = NTP_LI_VN_MODE(0, 3, ntp_mode_client);
     xnpt_dptr->xct_stratum   = 0;
     xnpt_dptr->xct_ppoll     = 4;
     xnpt_dptr->xct_percision = (x_char_t)(-6);
@@ -517,248 +540,6 @@ static x_void_t ntp_hton_packet(xntp_pack_t * xnpt_nptr)
 
 /**********************************************************/
 /**
- * @brief 向 NTP 服务器发送 NTP 请求，获取相关计算所需的时间戳（T1、T2、T3、T4如下所诉）。
- * <pre>
- *  1. 客户端 发送一个NTP报文给 服务端，该报文带有它离开 客户端 时的时间戳，该时间戳为 T1。
- *  2. 当此NTP报文到达 服务端 时，服务端 加上自己的时间戳，该时间戳为 T2。
- *  3. 当此NTP报文离开 服务端 时，服务端 再加上自己的时间戳，该时间戳为 T3。
- *  4. 当 客户端 接收到该应答报文时，客户端 的本地时间戳，该时间戳为 T4。
- * </pre>
- *
- * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址）。
- * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
- * @param [in ] xut_tmout : 超时时间（单位 毫秒）。
- * @param [out] xtm_4time : 操作成功返回的相关计算所需的时间戳（T1、T2、T3、T4）。
- *
- * @return x_int32_t : 成功，返回 0；失败，返回 错误码。
- */
-static x_int32_t ntp_get_4T(
-                    x_cstring_t xszt_host,
-                    x_uint16_t xut_port,
-                    x_uint32_t xut_tmout,
-                    xtime_unsec_t xtm_4time[4])
-{
-    x_int32_t xit_errno = EPERM;
-
-    x_sockfd_t  xfdt_sockfd = X_INVALID_SOCKFD;
-    xntp_pack_t xnpt_packet;
-
-    x_int32_t xit_addrlen = sizeof(struct sockaddr_in);
-    struct sockaddr_in xhost_addr;
-
-    do 
-    {
-        //======================================
-
-        xtm_4time[0] = XTIME_INVALID_UNSEC;
-        xtm_4time[1] = XTIME_INVALID_UNSEC;
-        xtm_4time[2] = XTIME_INVALID_UNSEC;
-        xtm_4time[3] = XTIME_INVALID_UNSEC;
-
-        if ((X_NULL == xszt_host) || (xut_tmout <= 0))
-        {
-            xit_errno = EINVAL;
-            break;
-        }
-
-        //======================================
-
-        xfdt_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-        if (X_INVALID_SOCKFD == xfdt_sockfd)
-        {
-            xit_errno = ntp_sockfd_errno();
-            break;
-        }
-
-        // 设置 发送/接收 超时时间
-        ntp_sockfd_tmout(xfdt_sockfd, xut_tmout);
-
-        // 服务端主机地址
-        memset(&xhost_addr, 0, sizeof(struct sockaddr_in));
-        xhost_addr.sin_family = AF_INET;
-        xhost_addr.sin_port   = htons(xut_port);
-        inet_pton(AF_INET, xszt_host, &xhost_addr.sin_addr.s_addr);
-
-        //======================================
-
-        // 初始化请求数据包
-        ntp_init_request_packet(&xnpt_packet);
-
-        // T1
-        xtm_4time[0] = time_unsec();
-
-        // NTP请求报文离开发送端时发送端的本地时间
-        XTIME_UTOS(xtm_4time[0], xnpt_packet.xtms_transmit);
-
-        // 转成网络字节序
-        ntp_hton_packet(&xnpt_packet);
-
-        // 发送 NTP 请求
-        xit_errno = sendto(
-                        xfdt_sockfd,
-                        (x_char_t *)&xnpt_packet,
-                        sizeof(xntp_pack_t),
-                        0,
-                        (struct sockaddr *)&xhost_addr,
-                        sizeof(struct sockaddr_in));
-        if (xit_errno < 0)
-        {
-            xit_errno = ntp_sockfd_errno();
-            break;
-        }
-
-        //======================================
-
-        memset(&xnpt_packet, 0, sizeof(xntp_pack_t));
-
-        // 接收应答
-        xit_errno = recvfrom(
-                        xfdt_sockfd,
-                        (x_char_t *)&xnpt_packet,
-                        sizeof(xntp_pack_t),
-                        0,
-                        (struct sockaddr *)&xhost_addr,
-                        (socklen_t *)&xit_addrlen);
-        // T4
-        xtm_4time[3] = time_unsec();
-
-        if (xit_errno < 0)
-        {
-            xit_errno = ntp_sockfd_errno();
-            break;
-        }
-
-        // 判断数据包长度是否有效
-        if (sizeof(xntp_pack_t) != xit_errno)
-        {
-            xit_errno = ENODATA;
-            break;
-        }
-
-        // 转成主机字节序
-        ntp_ntoh_packet(&xnpt_packet);
-
-        XTIME_STOU(xnpt_packet.xtms_receive , xtm_4time[1]); // T2
-        XTIME_STOU(xnpt_packet.xtms_transmit, xtm_4time[2]); // T3
-
-        if (XTIME_UNSEC_INVALID(xtm_4time[1]) ||
-            XTIME_UNSEC_INVALID(xtm_4time[2]))
-        {
-            xit_errno = ETIME;
-            break;
-        }
-
-        //======================================
-#ifdef XNTP_DBG_OUTPUT
-        printf("========================================\n"
-               " %s\n", xszt_host);
-        output_tm("\tNTP T1", &xnpt_packet.xtms_originate);
-        output_tm("\tNTP T2", &xnpt_packet.xtms_receive  );
-        output_tm("\tNTP T3", &xnpt_packet.xtms_transmit );
-        output_tu("\tSYS T1", xtm_4time[0]);
-        output_tu("\tSYS T2", xtm_4time[1]);
-        output_tu("\tSYS T3", xtm_4time[2]);
-        output_tu("\tSYS T4", xtm_4time[3]);
-        printf("\n");
-#endif // XNTP_DBG_OUTPUT
-        //======================================
-        xit_errno = 0;
-    } while (0);
-
-    if (X_INVALID_SOCKFD != xfdt_sockfd)
-    {
-        ntp_sockfd_close(xfdt_sockfd);
-        xfdt_sockfd = X_INVALID_SOCKFD;
-    }
-
-    return xit_errno;
-}
-
-/**********************************************************/
-/**
- * @brief 向 NTP 服务器发送 NTP 请求，获取相关计算所需的时间戳。
- *
- * @param [in ] xszt_name : NTP 服务器的 域名（如 3.cn.pool.ntp.org）。
- * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
- * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
- * @param [out] xtm_4time : 操作成功返回的相关计算所需的时间戳（T1、T2、T3、T4）。
- *
- * @return x_int32_t : 成功，返回 0；失败，返回 错误码。
- */
-static x_int32_t ntp_get_4T_by_name(
-                    x_cstring_t xszt_name,
-                    x_uint16_t xut_port,
-                    x_uint32_t xut_tmout,
-                    xtime_unsec_t xtm_4time[4])
-{
-    x_int32_t xit_errno = EPERM;
-
-    struct addrinfo   xai_hint;
-    struct addrinfo * xai_rptr = X_NULL;
-    struct addrinfo * xai_iptr = X_NULL;
-
-    x_char_t xszt_host[TEXT_LEN_256] = { 0 };
-
-    do
-    {
-        //======================================
-
-        if (X_NULL == xszt_name)
-        {
-            xit_errno = EINVAL;
-            break;
-        }
-
-        memset(&xai_hint, 0, sizeof(xai_hint));
-        xai_hint.ai_family   = AF_INET;
-        xai_hint.ai_socktype = SOCK_DGRAM;
-
-        xit_errno = getaddrinfo(xszt_name, X_NULL, &xai_hint, &xai_rptr);
-        if (0 != xit_errno)
-        {
-            break;
-        }
-
-        //======================================
-
-        for (xai_iptr = xai_rptr; X_NULL != xai_iptr; xai_iptr = xai_iptr->ai_next)
-        {
-            if (AF_INET != xai_iptr->ai_family)
-            {
-                continue;
-            }
-
-            memset(xszt_host, 0, TEXT_LEN_256);
-            if (X_NULL == inet_ntop(
-                            AF_INET,
-                            &(((struct sockaddr_in *)(xai_iptr->ai_addr))->sin_addr),
-                            xszt_host,
-                            TEXT_LEN_256))
-            {
-                continue;
-            }
-
-            xit_errno = ntp_get_4T(xszt_host, xut_port, xut_tmout, xtm_4time);
-            if (0 == xit_errno)
-            {
-                break;
-            }
-        }
-
-        //======================================
-    } while (0);
-
-    if (X_NULL != xai_rptr)
-    {
-        freeaddrinfo(xai_rptr);
-        xai_rptr = X_NULL;
-    }
-
-    return xit_errno;
-}
-
-/**********************************************************/
-/**
  * @brief 计算最后的结果，公式：T = T4 + ((T2 - T1) + (T3 - T4)) / 2;
  * @note
  * T1，客户端发送请求时的 本地系统时间戳；
@@ -775,69 +556,11 @@ static xtime_unsec_t ntp_calc_4T(xtime_unsec_t xtm_4time[4])
     return (xtime_unsec_t)xtm_TXX;
 }
 
-//====================================================================
-
-// 
-// NTP 外部相关操作接口
-// 
-
-/**********************************************************/
-/**
- * @brief 向 NTP 服务器发送 NTP 请求，获取服务器时间戳。
- *
- * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址） 或 域名（如 3.cn.pool.ntp.org）。
- * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
- * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
- *
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断是否为无效值；
- * 若值无效，则可通过 errno 获知错误码。
- */
-xtime_unsec_t ntp_get_time(
-                    x_cstring_t xszt_host,
-                    x_uint16_t xut_port,
-                    x_uint32_t xut_tmout)
-{
-    x_int32_t xit_errno = EPERM;
-
-    xtime_unsec_t xtm_unsec[4] =
-    {
-        XTIME_INVALID_UNSEC,
-        XTIME_INVALID_UNSEC,
-        XTIME_INVALID_UNSEC,
-        XTIME_INVALID_UNSEC
-    };
-
-    //======================================
-    // 参数验证
-
-    if ((X_NULL == xszt_host) || (xut_tmout <= 0))
-    {
-        errno = EINVAL;
-        return XTIME_INVALID_UNSEC;
-    }
-
-    //======================================
-
-    if (name_is_ipv4(xszt_host, X_NULL))
-        xit_errno = ntp_get_4T(xszt_host, xut_port, xut_tmout, xtm_unsec);
-    else
-        xit_errno = ntp_get_4T_by_name(xszt_host, xut_port, xut_tmout, xtm_unsec);
-
-    if (0 != xit_errno)
-    {
-        errno = xit_errno;
-        return XTIME_INVALID_UNSEC;
-    }
-
-    //======================================
-
-    return ntp_calc_4T(xtm_unsec);
-
-    //======================================
-}
-
 ////////////////////////////////////////////////////////////////////////////////
+
+// 
+// NTP 内部相关操作接口与数据类型
+// 
 
 /**
  * @struct xntp_client_t
@@ -850,12 +573,6 @@ typedef struct xntp_client_t
     x_uint16_t    xut_port;                 ///< 存储提供 NTP 服务的 服务端 端口号
     xtime_unsec_t xtm_4time[4];             ///< 完成 NTP 请求后，所得到的 4 个相关时间戳
 } xntp_client_t;
-
-////////////////////////////////////////////////////////////////////////////////
-
-// 
-// NTP 内部相关操作接口
-// 
 
 /**********************************************************/
 /**
@@ -912,7 +629,7 @@ static x_int32_t ntpcli_get_4T(
         //======================================
 
         // 初始化请求数据包
-        ntp_init_request_packet(&xnpt_pack);
+        ntp_init_req_packet(&xnpt_pack);
 
         // T1
         xntp_this->xtm_4time[0] = time_unsec();
@@ -933,7 +650,7 @@ static x_int32_t ntpcli_get_4T(
                         sizeof(struct sockaddr_in));
         if (xit_errno < 0)
         {
-            xit_errno = ntp_sockfd_errno();
+            xit_errno = sockfd_errno();
 #if (defined(_WIN32) || defined(_WIN64))
             if (WSAEWOULDBLOCK != xit_errno)
 #elif (defined(__linux__) || defined(__unix__))
@@ -966,7 +683,7 @@ static x_int32_t ntpcli_get_4T(
                         (xut_tmout > 0) ? &xtm_value : X_NULL);
         if (xit_errno <= 0)
         {
-            xit_errno = (0 == xit_errno) ? ETIMEDOUT : ntp_sockfd_errno();
+            xit_errno = (0 == xit_errno) ? ETIMEDOUT : sockfd_errno();
             break;
         }
 
@@ -994,7 +711,7 @@ static x_int32_t ntpcli_get_4T(
 
         if (xit_errno < 0)
         {
-            xit_errno = ntp_sockfd_errno();
+            xit_errno = sockfd_errno();
             break;
         }
 
@@ -1153,13 +870,13 @@ xntp_cliptr_t ntpcli_open(void)
         xntp_this->xfdt_sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         if (X_INVALID_SOCKFD == xntp_this->xfdt_sockfd)
         {
-            xit_errno = ntp_sockfd_errno();
+            xit_errno = sockfd_errno();
             break;
         }
 
-        if (0 != ntp_sockfd_nbio(xntp_this->xfdt_sockfd))
+        if (0 != sockfd_nbio(xntp_this->xfdt_sockfd))
         {
-            xit_errno = ntp_sockfd_errno();
+            xit_errno = sockfd_errno();
             break;
         }
 
@@ -1199,7 +916,7 @@ x_void_t ntpcli_close(xntp_cliptr_t xntp_this)
 
     if (X_INVALID_SOCKFD != xntp_this->xfdt_sockfd)
     {
-        ntp_sockfd_close(xntp_this->xfdt_sockfd);
+        sockfd_close(xntp_this->xfdt_sockfd);
     }
 
     free(xntp_this);
@@ -1229,7 +946,17 @@ x_int32_t ntpcli_config(
         return EINVAL;
     }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif // _MSC_VER
+
     strncpy(xntp_this->xszt_host, xszt_host, TEXT_LEN_256);
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
+
     xntp_this->xut_port = xut_port;
 
     return 0;
@@ -1310,7 +1037,7 @@ xtime_unsec_t ntpcli_get_time(
 
     do
     {
-        xntp_this = ntpcli_open(void);
+        xntp_this = ntpcli_open();
         if (X_NULL == xntp_this)
         {
             break;
