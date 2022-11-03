@@ -53,11 +53,61 @@
 //====================================================================
 
 // 
-// 内部相关数据类型与常量
+// 内部相关的数据类型与常量
 // 
 
 /** 1601 ~ 1970 年之间的时间 百纳秒数 */
 #define XTIME_UNSEC_1601_1970 116444736000000000LL
+
+//====================================================================
+
+// 
+// 内部相关的操作接口
+// 
+
+/**********************************************************/
+/**
+ * @brief 依据 Zeller 公式，求取 具体日期（年、月、日） 对应的 星期几 。
+ * @note
+ * Zeller 公式：w = y + [ y / 4] + [ c / 4] - (2 * c) + [26 * (m + 1) / 10] + d - 1;
+ * 该公式只适合于 1582年10月15日 之后的情形，公式中的符号含义如下：
+ *  w：星期 w 对7取模得：0-星期日，1-星期一，2-星期二，3-星期三，4-星期四，5-星期五，6-星期六；
+ *  c：世纪数 - 1（四位数年份的前两位数）；
+ *  y：年；
+ *  m：月，(m >= 3 && m <= 14)，即在 Zeller 公式中，
+ *     某年的 1、2 月要看作上一年的 13、14 月来计算，
+ *     比如 2003年1月1日 要看作 2002年的13月1日 来计算；
+ *  d：日。
+ * 
+ * @param [in ] xut_year  : 年。
+ * @param [in ] xut_month : 月。
+ * @param [in ] xut_day   : 日。
+ * 
+ * @return x_int32_t :
+ * 星期编号 0 ~ 6 （星期日 对应 0， 星期一 对应 1， ...）。
+ */
+static x_int32_t time_week(
+                    x_uint32_t xut_year,
+                    x_uint32_t xut_month,
+                    x_uint32_t xut_day)
+{
+    x_int32_t xit_c = 0;
+    x_int32_t xit_y = 0;
+
+    if (xut_month < 3)
+    {
+        xut_month += 12;
+        xut_year  -=  1;
+    }
+
+    xit_c = (x_int32_t)(xut_year / 100);
+    xit_y = (x_int32_t)(xut_year % 100);
+
+    return (x_int32_t)((xit_y + (xit_y >> 2) + 
+                       (xit_c >> 2) - (xit_c << 1) + 
+                       ((26 * (xut_month + 1)) / 10) + 
+                       (xut_day - 1)) % 7);
+}
 
 //====================================================================
 
@@ -104,7 +154,7 @@ xtime_unsec_t time_unsec(void)
  */
 xtime_descr_t time_descr(void)
 {
-    xtime_descr_t xtm_descr = { XTIME_INVALID_DESCR };
+    xtime_descr_t xtm_descr = { 0 };
 
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -155,7 +205,7 @@ xtime_descr_t time_descr(void)
  * @param [in ] xtm_descr : 待转换的 时间描述信息。
  * 
  * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断其是否为无效值。
+ * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断其是否为有效。
  */
 xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
 {
@@ -237,11 +287,11 @@ xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
  * @param [in ] xtm_unsec : 待转换的 时间计量值。
  * 
  * @return xtime_descr_t : 
- * 返回 时间描述信息，可用 XTIME_DESCR_INVALID() 判断其是否为无效。
+ * 返回 时间描述信息，可用 XTMDESCR_IS_VALID() 判断其是否为有效。
  */
 xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
 {
-    xtime_descr_t xtm_descr = { XTIME_INVALID_DESCR };
+    xtime_descr_t xtm_descr = { 0 };
 
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -288,6 +338,68 @@ xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
 #endif // PLATFORM
 
     return xtm_descr;
+}
+
+/**********************************************************/
+/**
+ * @brief 判断 时间描述信息 是否有效。
+ */
+x_bool_t time_descr_valid(xtime_descr_t xtm_descr)
+{
+    x_bool_t xbt_valid = X_TRUE;
+
+    do
+    {
+        //======================================
+
+        if ((xtm_descr.ctx_year   < 1970) ||
+            (xtm_descr.ctx_week   >    6) ||
+            (xtm_descr.ctx_hour   >   23) ||
+            (xtm_descr.ctx_minute >   59) ||
+            (xtm_descr.ctx_second >   59) ||
+            (xtm_descr.ctx_msec   >  999))
+        {
+            xbt_valid = X_FALSE;
+            break;
+        }
+
+        //======================================
+
+        switch (xtm_descr.ctx_month)
+        {
+        case 1: case 3: case 5: case 7: case 8: case 10: case 12:
+            xbt_valid = (xtm_descr.ctx_day <= 31);
+            break;
+
+        case 4: case 6: case 9: case 11:
+            xbt_valid = (xtm_descr.ctx_day <= 30);
+            break;
+
+        case 2:
+#define IS_LEAP_YEAR(Y) ((0 == (Y) % 400) || ((0 == (Y) % 4) && (0 != (Y) % 100)))
+            xbt_valid = (xtm_descr.ctx_day <= (IS_LEAP_YEAR(xtm_descr.ctx_year) ? 29U : 28U));
+#undef IS_LEAP_YEAR
+            break;
+
+        default:
+            xbt_valid = X_FALSE;
+            break;
+        }
+
+        if (!xbt_valid) break;
+
+        //======================================
+
+        xbt_valid = (xtm_descr.ctx_week == 
+                     (x_uint32_t)time_week(
+                                    xtm_descr.ctx_year,
+                                    xtm_descr.ctx_month,
+                                    xtm_descr.ctx_day));
+
+        //======================================
+    } while (0);
+
+    return xbt_valid;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -728,8 +728,8 @@ static x_int32_t ntpcli_get_4T(
         XTIME_STOU(xnpt_pack.xtms_receive , xntp_this->xtm_4time[1]); // T2
         XTIME_STOU(xnpt_pack.xtms_transmit, xntp_this->xtm_4time[2]); // T3
 
-        if (XTIME_UNSEC_INVALID(xntp_this->xtm_4time[1]) ||
-            XTIME_UNSEC_INVALID(xntp_this->xtm_4time[2]))
+        if (!XTMUNSEC_IS_VALID(xntp_this->xtm_4time[1]) ||
+            !XTMUNSEC_IS_VALID(xntp_this->xtm_4time[2]))
         {
             xit_errno = ETIME;
             break;
@@ -946,16 +946,11 @@ x_int32_t ntpcli_config(
         return EINVAL;
     }
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#endif // _MSC_VER
-
+#if (defined(_WIN32) || defined(_WIN64))
+    strncpy_s(xntp_this->xszt_host, TEXT_LEN_256, xszt_host, TEXT_LEN_256);
+#else // !(defined(_WIN32) || defined(_WIN64))
     strncpy(xntp_this->xszt_host, xszt_host, TEXT_LEN_256);
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif // _MSC_VER
+#endif // PLATFORM
 
     xntp_this->xut_port = xut_port;
 
@@ -970,7 +965,7 @@ x_int32_t ntpcli_config(
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  * 
  * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断是否为无效值；
+ * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
 xtime_unsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
@@ -1021,7 +1016,7 @@ xtime_unsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  *
  * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断是否为无效值；
+ * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
 xtime_unsec_t ntpcli_get_time(

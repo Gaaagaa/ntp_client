@@ -97,7 +97,7 @@ x_int32_t ntpcli_config(
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  * 
  * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断是否为无效值；
+ * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
 xtime_unsec_t ntpcli_req_time(
@@ -119,7 +119,7 @@ xtime_unsec_t ntpcli_req_time(
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  *
  * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTIME_UNSEC_INVALID() 判断是否为无效值；
+ * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
 xtime_unsec_t ntpcli_get_time(
