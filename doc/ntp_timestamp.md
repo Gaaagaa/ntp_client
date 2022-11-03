@@ -1,8 +1,11 @@
+# 使用 NTP 协议获取网络时间戳
+
 最近接手的一个客户端项目，需要获取网络时间戳进行超时判断，想到了使用NTP协议来实现。
 在网上参看了不少博文，大多数人提供的C/C++代码过于杂乱，不宜在正式项目中使用（拒绝野代码）。
 在此我重写了一遍，并在 Windows 与 Linux 两大平台上测试通过。
 
-## NTP 工作原理
+## 1. NTP 工作原理
+
 NTP的基本工作原理如图所示（Device A 相当于客户端，Device B 相当于 NTP 服务端）。Device A 和 Device B 通过网络相连，它们都有自己独立的系统时钟，需要通过NTP实现各自系统时钟的自动同步。为便于理解，作如下假设：
 
 - 在Device A和Device B的系统时钟同步之前，Device A的时钟设定为10:00:00am，Device B的时钟设定为11:00:00am。
@@ -30,7 +33,8 @@ NTP的基本工作原理如图所示（Device A 相当于客户端，Device B �
 
 以上内容只是对NTP工作原理的一个粗略描述，详细内容请参阅RFC 1305。
 
-## NTP 报文格式
+## 2. NTP 报文格式
+
 NTP有两种不同类型的报文，一种是时钟同步报文，另一种是控制报文。控制报文仅用于需要网络管理的场合，它对于时钟同步功能来说并不是必需的，这里不做介绍。时钟同步报文封装在UDP报文中，其格式如图所示。
 
 图 时钟同步报文格式
@@ -42,16 +46,18 @@ NTP有两种不同类型的报文，一种是时钟同步报文，另一种是�
 - LI（Leap Indicator，闰秒提示）：长度为2比特，值为“11”时表示告警状态，时钟未被同步。为其他值时NTP本身不做处理。
 - VN（Version Number，版本号）：长度为3比特，表示NTP的版本号，目前的最新版本为4。
 - Mode：长度为3比特，表示NTP的工作模式。不同的值所表示的含义分别是：
-```
-	0 未定义；
-	1 表示主动对等体模式；
-	2 表示被动对等体模式；
-	3 表示客户模式；
-	4 表示服务器模式；
-	5 表示广播模式或组播模式；
-	6 表示此报文为NTP控制报文；
-	7 预留给内部使用。
-```
+
+>
+> 0 未定义；
+> 1 表示主动对等体模式；
+> 2 表示被动对等体模式；
+> 3 表示客户模式；
+> 4 表示服务器模式；
+> 5 表示广播模式或组播模式；
+> 6 表示此报文为NTP控制报文；
+> 7 预留给内部使用。
+>
+
 - Stratum：系统时钟的层数，取值范围为1～16，它定义了时钟的准确度。层数为1的时钟准确度最高，准确度从1到16依次递减，层数为16的时钟处于未同步状态。
 - Poll：轮询时间，即两个连续NTP报文之间的时间间隔。
 - Precision：系统时钟的精度。
@@ -64,52 +70,49 @@ NTP有两种不同类型的报文，一种是时钟同步报文，另一种是�
 - Transmit Timestamp：应答报文离开应答者时应答者的本地时间。
 - Authenticator：验证信息。
 
-## 常用的 NTP 服务器
-```
-    1.cn.pool.ntp.org
-    2.cn.pool.ntp.org
-    3.cn.pool.ntp.org
-    0.cn.pool.ntp.org
-    cn.pool.ntp.org
-    tw.pool.ntp.org
-    0.tw.pool.ntp.org
-    1.tw.pool.ntp.org
-    2.tw.pool.ntp.org
-    3.tw.pool.ntp.org
-    pool.ntp.org
-    time.windows.com
-    time.nist.gov
-    time-nw.nist.gov
-    asia.pool.ntp.org
-    europe.pool.ntp.org
-    oceania.pool.ntp.org
-    north-america.pool.ntp.org
-    south-america.pool.ntp.org
-    africa.pool.ntp.org
-    ca.pool.ntp.org
-    uk.pool.ntp.org
-    us.pool.ntp.org
-    au.pool.ntp.org
-```
+## 3. 一些常用的 NTP 服务器
 
-## C/C++代码实现的主要流程
-- NTP通信相关的数据结构体
-```
+>
+> ntp.tencent.com
+> ntp1.tencent.com
+> ntp2.tencent.com
+> ntp3.tencent.com
+> ntp4.tencent.com
+> ntp5.tencent.com
+> ntp.aliyun.com
+> ntp1.aliyun.com
+> ntp2.aliyun.com
+> ntp3.aliyun.com
+> ntp4.aliyun.com
+> ntp5.aliyun.com
+> ntp6.aliyun.com
+> ntp7.aliyun.com
+> time.edu.cn
+> s2c.time.edu.cn
+> s2f.time.edu.cn
+>
+
+## 4. C/C++代码实现的主要流程
+
+### 4.1 NTP通信相关的数据结构体
+
+```c++
+
 /**
- * @struct x_ntp_timestamp_t
- * @brief  NTP 时间戳。
+ * @struct xtime_stamp_t
+ * @brief  NTP所使用的时间戳。
  */
-typedef struct x_ntp_timestamp_t
+typedef struct xtime_stamp_t
 {
-    x_uint32_t  xut_seconds;    ///< 从 1900年至今所经过的秒数
-    x_uint32_t  xut_fraction;   ///< 小数部份，单位是微秒数的4294.967296( = 2^32 / 10^6 )倍
-} x_ntp_timestamp_t;
+    x_uint32_t xut_seconds;  ///< 从 1900年至今所经过的秒数
+    x_uint32_t xut_fraction; ///< 小数部份，其单位是 百纳秒数 的 (2^32 / 10^7) 倍
+} xtime_stamp_t;
 
 /**
- * @enum  em_ntp_mode_t
+ * @enum  xntp_mode_t
  * @brief NTP工作模式的相关枚举值。
  */
-typedef enum em_ntp_mode_t
+typedef enum xntp_mode_t
 {
     ntp_mode_unknow     = 0,  ///< 未定义
     ntp_mode_initiative = 1,  ///< 主动对等体模式
@@ -119,228 +122,320 @@ typedef enum em_ntp_mode_t
     ntp_mode_broadcast  = 5,  ///< 广播模式或组播模式
     ntp_mode_control    = 6,  ///< 报文为 NTP 控制报文
     ntp_mode_reserved   = 7,  ///< 预留给内部使用
-} em_ntp_mode_t;
+} xntp_mode_t;
 
 /**
- * @struct x_ntp_packet_t
+ * @struct xntp_pack_t
  * @brief  NTP 报文格式。
  */
-typedef struct x_ntp_packet_t
+typedef struct xntp_pack_t
 {
-    x_uchar_t         xct_li_ver_mode;      ///< 2 bits，飞跃指示器；3 bits，版本号；3 bits，NTP工作    模式（参看 em_ntp_mode_t 相关枚举值）
-    x_uchar_t         xct_stratum    ;      ///< 系统时钟的层数，取值范围为1~16，它定义了时钟的准确    度。层数为1的时钟准确度最高，准确度从1到16依次递减，层数为16的时钟处于未同步状态，不能作为参考时钟
-    x_uchar_t         xct_poll       ;      ///< 轮询时间，即两个连续NTP报文之间的时间间隔
-    x_uchar_t         xct_percision  ;      ///< 系统时钟的精度
+    x_uchar_t     xct_lvmflag  ;  ///< 2 bits，飞跃指示器；3 bits，版本号；3 bits，NTP工作模式（参看 xntp_mode_t 相关枚举值）
+    x_uchar_t     xct_stratum  ;  ///< 系统时钟的层数，取值范围为1~16，它定义了时钟的准确度。层数为1的时钟准确度最高，准确度从1到16依次递减，层数为16的时钟处于未同步状态，不能作为参考时钟
+    x_uchar_t     xct_ppoll    ;  ///< 轮询时间，即两个连续NTP报文之间的时间间隔
+    x_char_t      xct_percision;  ///< 系统时钟的精度
 
-    x_uint32_t        xut_root_delay     ;  ///< 本地到主参考时钟源的往返时间
-    x_uint32_t        xut_root_dispersion;  ///< 系统时钟相对于主参考时钟的最大误差
-    x_uint32_t        xut_ref_indentifier;  ///< 参考时钟源的标识
+    x_uint32_t    xut_rootdelay;  ///< 本地到主参考时钟源的往返时间
+    x_uint32_t    xut_rootdisp ;  ///< 系统时钟相对于主参考时钟的最大误差
+    x_uint32_t    xut_refid    ;  ///< 参考时钟源的标识
 
-    x_ntp_timestamp_t xtmst_reference;      ///< 系统时钟最后一次被设定或更新的时间
-    x_ntp_timestamp_t xtmst_originate;      ///< NTP请求报文离开发送端时发送端的本地时间
-    x_ntp_timestamp_t xtmst_receive  ;      ///< NTP请求报文到达接收端时接收端的本地时间
-    x_ntp_timestamp_t xtmst_transmit ;      ///< 应答报文离开应答者时应答者的本地时间
-} x_ntp_packet_t;
+    /**
+     * T1，客户端发送请求时的 本地系统时间戳；
+     * T2，服务端接收到客户端请求时的 本地系统时间戳；
+     * T3，服务端发送应答数据包时的 本地系统时间戳；
+     * T4，客户端接收到服务端应答数据包时的 本地系统时间戳。
+     */
+    xtime_stamp_t xtms_reference; ///< 系统时钟最后一次被设定或更新的时间
+    xtime_stamp_t xtms_originate; ///< 服务端应答时，将客户端请求时的 T1 返送回去
+    xtime_stamp_t xtms_receive  ; ///< 服务端接收到客户端请求时的 本地系统时间戳 T2
+    xtime_stamp_t xtms_transmit ; ///< 客户端请求时 发送 T1，服务端应答时 回复 T3
+} xntp_pack_t;
+
+/**
+ * @struct xntp_client_t
+ * @brief  NTP 客户端工作对象的结构体描述信息。
+ */
+typedef struct xntp_client_t
+{
+    x_sockfd_t    xfdt_sockfd;              ///< 网络通信使用的 套接字
+    x_char_t      xszt_host[TEXT_LEN_256];  ///< 存储提供 NTP 服务的 服务端 地址
+    x_uint16_t    xut_port;                 ///< 存储提供 NTP 服务的 服务端 端口号
+    xtime_unsec_t xtm_4time[4];             ///< 完成 NTP 请求后，所得到的 4 个相关时间戳
+} xntp_client_t;
+
 ```
-- NTP请求的操作流程
-```
+
+### 4.2 NTP请求的操作流程
+
+```c++
+
 /**********************************************************/
 /**
  * @brief 向 NTP 服务器发送 NTP 请求，获取相关计算所需的时间戳（T1、T2、T3、T4如下所诉）。
  * <pre>
- *     1. 客户端 发送一个NTP报文给 服务端，该报文带有它离开 客户端 时的时间戳，该时间戳为 T1。
- *     2. 当此NTP报文到达 服务端 时，服务端 加上自己的时间戳，该时间戳为 T2。
- *     3. 当此NTP报文离开 服务端 时，服务端 再加上自己的时间戳，该时间戳为 T3。
- *     4. 当 客户端 接收到该应答报文时，客户端 的本地时间戳，该时间戳为 T4。
- * </prev>
- *
+ *  1. 客户端 发送一个NTP报文给 服务端，该报文带有它离开 客户端 时的时间戳，该时间戳为 T1。
+ *  2. 当此NTP报文到达 服务端 时，服务端 加上自己的时间戳，该时间戳为 T2。
+ *  3. 当此NTP报文离开 服务端 时，服务端 再加上自己的时间戳，该时间戳为 T3。
+ *  4. 当 客户端 接收到该应答报文时，客户端 的本地时间戳，该时间戳为 T4。
+ * </pre>
+ * 
+ * @param [in ] xntp_this : NTP 客户端工作对象。
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址）。
- * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 超时时间（单位 毫秒）。
- * @param [out] xit_tmlst : 操作成功返回的相关计算所需的时间戳（T1、T2、T3、T4）。
- *
- * @return x_int32_t
- *         - 成功，返回 0；
- *         - 失败，返回 错误码。
+ * 
+ * @return x_int32_t : 成功，返回 0；失败，返回 错误码。
  */
-static x_int32_t ntp_get_time_values(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xut_tmout, x_int64_t xit_tmlst[4])
+static x_int32_t ntpcli_get_4T(
+                    xntp_cliptr_t xntp_this,
+                    x_cstring_t xszt_host,
+                    x_uint32_t xut_tmout)
 {
-    x_int32_t xit_err = -1;
+    x_int32_t xit_errno = EPERM;
 
-    x_sockfd_t      xfdt_sockfd = X_INVALID_SOCKFD;
-    x_ntp_packet_t  xnpt_buffer;
-    x_ntp_timeval_t xtm_value;
-
-    x_int32_t xit_addrlen = sizeof(struct sockaddr_in);
-    struct sockaddr_in skaddr_host;
+    xntp_pack_t        xnpt_pack;
+    x_int32_t          xit_alen;
+    struct sockaddr_in xin_addr;
+    fd_set             xfds_rset;
+    struct timeval     xtm_value;
 
     do 
     {
         //======================================
 
-        if ((X_NULL == xszt_host) || (xut_tmout <= 0) || (X_NULL == xit_tmlst))
+        if ((X_NULL == xntp_this) || (X_NULL == xszt_host))
         {
+            xit_errno = EINVAL;
             break;
         }
+
+        xntp_this->xtm_4time[0] = XTIME_INVALID_UNSEC;
+        xntp_this->xtm_4time[1] = XTIME_INVALID_UNSEC;
+        xntp_this->xtm_4time[2] = XTIME_INVALID_UNSEC;
+        xntp_this->xtm_4time[3] = XTIME_INVALID_UNSEC;
 
         //======================================
 
-        xfdt_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-        if (X_INVALID_SOCKFD == xfdt_sockfd)
-        {
-            break;
-        }
-
-        // 设置 发送/接收 超时时间
-#ifdef _WIN32
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xut_tmout, sizeof(x_uint32_t));
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xut_tmout, sizeof(x_uint32_t));
-#else // !_WIN32
-        xtm_value.tv_sec  = (x_long_t)((xut_tmout / 1000));
-        xtm_value.tv_usec = (x_long_t)((xut_tmout % 1000) * 1000);
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_SNDTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
-        setsockopt(xfdt_sockfd, SOL_SOCKET, SO_RCVTIMEO, (x_char_t *)&xtm_value, sizeof(x_ntp_timeval_t));
-#endif // _WIN32
-
         // 服务端主机地址
-        memset(&skaddr_host, 0, sizeof(struct sockaddr_in));
-        skaddr_host.sin_family = AF_INET;
-        skaddr_host.sin_port   = htons(xut_port);
-        inet_pton(AF_INET, xszt_host, &skaddr_host.sin_addr.s_addr);
+        memset(&xin_addr, 0, sizeof(struct sockaddr_in));
+        xin_addr.sin_family = AF_INET;
+        xin_addr.sin_port   = htons(xntp_this->xut_port);
+        inet_pton(AF_INET, xszt_host, &xin_addr.sin_addr.s_addr);
 
         //======================================
 
         // 初始化请求数据包
-        ntp_init_request_packet(&xnpt_buffer);
-
-        // NTP请求报文离开发送端时发送端的本地时间
-        ntp_gettimeofday(&xtm_value);
-        ntp_timeval_to_timestamp(&xnpt_buffer.xtmst_originate, &xtm_value);
+        ntp_init_req_packet(&xnpt_pack);
 
         // T1
-        xit_tmlst[0] = (x_int64_t)ntp_timeval_ns100(&xtm_value);
+        xntp_this->xtm_4time[0] = time_unsec();
+
+        // NTP请求报文离开发送端时发送端的本地时间
+        XTIME_UTOS(xntp_this->xtm_4time[0], xnpt_pack.xtms_transmit);
 
         // 转成网络字节序
-        ntp_hton_packet(&xnpt_buffer);
+        ntp_hton_packet(&xnpt_pack);
 
-        // 投递请求
-        xit_err = sendto(xfdt_sockfd,
-                         (x_char_t *)&xnpt_buffer,
-                         sizeof(x_ntp_packet_t),
-                         0,
-                         (sockaddr *)&skaddr_host,
-                         sizeof(struct sockaddr_in));
-        if (xit_err < 0)
+        // 发送 NTP 请求
+        xit_errno = sendto(
+                        xntp_this->xfdt_sockfd,
+                        (x_char_t *)&xnpt_pack,
+                        sizeof(xntp_pack_t),
+                        0,
+                        (struct sockaddr *)&xin_addr,
+                        sizeof(struct sockaddr_in));
+        if (xit_errno < 0)
         {
-            xit_err = ntp_sockfd_lasterror();
-            continue;
+            xit_errno = sockfd_errno();
+#if (defined(_WIN32) || defined(_WIN64))
+            if (WSAEWOULDBLOCK != xit_errno)
+#elif (defined(__linux__) || defined(__unix__))
+            if ((EAGAIN != xit_errno) && (EWOULDBLOCK != xit_errno))
+#else // UNKNOW
+#endif // PLATFORM
+            {
+                break;
+            }
+        }
+
+        //======================================
+        // 使用 select() 检测套接字可读
+
+        FD_ZERO(&xfds_rset);
+        FD_SET(xntp_this->xfdt_sockfd, &xfds_rset);
+
+        // 超时时间
+        if (xut_tmout > 0)
+        {
+            xtm_value.tv_sec  = (xut_tmout / 1000);
+            xtm_value.tv_usec = (xut_tmout % 1000) * 1000;
+        }
+
+        xit_errno = select(
+                        (x_int32_t)(xntp_this->xfdt_sockfd + 1),
+                        &xfds_rset,
+                        X_NULL,
+                        X_NULL,
+                        (xut_tmout > 0) ? &xtm_value : X_NULL);
+        if (xit_errno <= 0)
+        {
+            xit_errno = (0 == xit_errno) ? ETIMEDOUT : sockfd_errno();
+            break;
+        }
+
+        if (!FD_ISSET(xntp_this->xfdt_sockfd, &xfds_rset))
+        {
+            xit_errno = EBADF;
+            break;
         }
 
         //======================================
 
-        memset(&xnpt_buffer, 0, sizeof(x_ntp_packet_t));
+        memset(&xnpt_pack, 0, sizeof(xntp_pack_t));
 
         // 接收应答
-        xit_err = recvfrom(xfdt_sockfd,
-                           (x_char_t *)&xnpt_buffer,
-                           sizeof(x_ntp_packet_t),
-                           0,
-                           (sockaddr *)&skaddr_host,
-                           (socklen_t *)&xit_addrlen);
-        if (xit_err < 0)
-        {
-            xit_err = ntp_sockfd_lasterror();
-            break;
-        }
-
-        if (sizeof(x_ntp_packet_t) != xit_err)
-        {
-            xit_err = -1;
-            break;
-        }
-
+        xit_alen  = sizeof(struct sockaddr_in);
+        xit_errno = recvfrom(
+                        xntp_this->xfdt_sockfd,
+                        (x_char_t *)&xnpt_pack,
+                        sizeof(xntp_pack_t),
+                        0,
+                        (struct sockaddr *)&xin_addr,
+                        (socklen_t *)&xit_alen);
         // T4
-        xit_tmlst[3] = (x_int64_t)ntp_gettimevalue();
+        xntp_this->xtm_4time[3] = time_unsec();
+
+        if (xit_errno < 0)
+        {
+            xit_errno = sockfd_errno();
+            break;
+        }
+
+        // 判断数据包长度是否有效
+        if (sizeof(xntp_pack_t) != xit_errno)
+        {
+            xit_errno = ENODATA;
+            break;
+        }
 
         // 转成主机字节序
-        ntp_ntoh_packet(&xnpt_buffer);
+        ntp_ntoh_packet(&xnpt_pack);
 
-        xit_tmlst[1] = (x_int64_t)ntp_timestamp_ns100(&xnpt_buffer.xtmst_receive ); // T2
-        xit_tmlst[2] = (x_int64_t)ntp_timestamp_ns100(&xnpt_buffer.xtmst_transmit); // T3
+        XTIME_STOU(xnpt_pack.xtms_receive , xntp_this->xtm_4time[1]); // T2
+        XTIME_STOU(xnpt_pack.xtms_transmit, xntp_this->xtm_4time[2]); // T3
+
+        if (!XTMUNSEC_IS_VALID(xntp_this->xtm_4time[1]) ||
+            !XTMUNSEC_IS_VALID(xntp_this->xtm_4time[2]))
+        {
+            xit_errno = ETIME;
+            break;
+        }
 
         //======================================
-        xit_err = 0;
+#ifdef XNTP_DBG_OUTPUT
+        printf("========================================\n"
+               "%s : %s\n", xntp_this->xszt_host, xszt_host);
+        output_tm("\tNTP RT", &xnpt_pack.xtms_reference);
+        output_tm("\tNTP T1", &xnpt_pack.xtms_originate);
+        output_tm("\tNTP T2", &xnpt_pack.xtms_receive  );
+        output_tm("\tNTP T3", &xnpt_pack.xtms_transmit );
+        output_tu("\tSYS T1", xntp_this->xtm_4time[0]);
+        output_tu("\tSYS T2", xntp_this->xtm_4time[1]);
+        output_tu("\tSYS T3", xntp_this->xtm_4time[2]);
+        output_tu("\tSYS T4", xntp_this->xtm_4time[3]);
+        printf("\n");
+#endif // XNTP_DBG_OUTPUT
+        //======================================
+        xit_errno = 0;
     } while (0);
 
-    if (X_INVALID_SOCKFD != xfdt_sockfd)
-    {
-        ntp_sockfd_close(xfdt_sockfd);
-        xfdt_sockfd = X_INVALID_SOCKFD;
-    }
-
-    return xit_err;
+    return xit_errno;
 }
+
 ```
-- 项目中实际使用到的接口
-```
+
+### 4.3 项目中实际使用到的接口
+
+项目实际应用的场景，分两种情况：
+
+1. 只做单次调用，从服务端获得 NTP 时间戳之后，不再进行 NTP 的其它相关操作。此情况选择如下调用如下 `ntpcli_get_time()` 接口即可：
+
+```c++
+
 /**********************************************************/
 /**
- * @brief 向 NTP 服务器发送 NTP 请求，获取服务器时间戳。
- * 
+ * @brief 
+ * 向 NTP 服务器发送 NTP 请求，获取服务器时间戳。
+ * @note 
+ * 该接口内部自动 创建/销毁 NTP 客户端对象，执行完整的 NTP 请求流程。
+ * 这适用于只执行单次请求操作。
+ *
  * @param [in ] xszt_host : NTP 服务器的 IP（四段式 IP 地址） 或 域名（如 3.cn.pool.ntp.org）。
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
- * @param [out] xut_timev : 操作成功返回的应答时间值（以 100纳秒 为单位，1970年1月1日到现在的时间）。
- * 
- * @return x_int32_t
- *         - 成功，返回 0；
- *         - 失败，返回 错误码。
+ *
+ * @return xtime_unsec_t : 
+ * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
+ * 若值无效，则可通过 errno 获知错误码。
  */
-x_int32_t ntp_get_time(x_cstring_t xszt_host, x_uint16_t xut_port, x_uint32_t xut_tmout,     x_uint64_t * xut_timev);
+xtime_unsec_t ntpcli_get_time(
+                    x_cstring_t xszt_host,
+                    x_uint16_t xut_port,
+                    x_uint32_t xut_tmout);
+
 ```
-其中，返回的时间戳值 `xut_timev` 由计算公式 `T = T4 + ((T2 - T1) + (T3 - T4)) / 2;` 所得。若要将该时间戳值转换为其他易描述（或实际应用）的数据信息，调用 `ntp_tmctxt_bv(xut_timev, &xtm_context)` 接口即可，详细说明参考如下所列代码：
-```
-// VxNtpHelper.h
+
+其中，返回的时间戳值 `xtime_unsec_t` 由计算公式 `T = T4 + ((T2 - T1) + (T3 - T4)) / 2;` 所得。若要将该时间戳值转换为其他易描述（或实际应用）的数据信息，可调用 `xtime.h` 头文件种所声明的接口 `xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)` 实现，`xtime_descr_t` 数据类型的详细说明，参考 `xtime.h` 中所列代码：
+
+```c++
+// xtime.h
+
+/** 以 100纳秒 为单位，1970-01-01 00:00:00 至今的 时间计量值 类型 */
+typedef x_uint64_t xtime_unsec_t;
 
 /**
- * @struct x_ntp_time_context_t
- * @brief  时间描述信息结构体。
+ * @struct xtime_descr_t
+ * @brief  时间描述信息的联合体类型（共计 64 位）。
+ * @note   该结构体用于描述 1970-01-01 00:00:00 往后的时间。
  */
-typedef struct x_ntp_time_context_t
+typedef union xtime_descr_t
 {
-    x_uint32_t   xut_year   : 16;  ///< 年
-    x_uint32_t   xut_month  :  6;  ///< 月
-    x_uint32_t   xut_day    :  6;  ///< 日
-    x_uint32_t   xut_week   :  4;  ///< 周几
-    x_uint32_t   xut_hour   :  6;  ///< 时
-    x_uint32_t   xut_minute :  6;  ///< 分
-    x_uint32_t   xut_second :  6;  ///< 秒
-    x_uint32_t   xut_msec   : 14;  ///< 毫秒
-} x_ntp_time_context_t;
+    /** 对齐的 64位 整数值 */
+    x_uint64_t ctx_value;
+
+    /** 描述信息的上下文描述结构体 */
+    struct
+    {
+    x_uint32_t ctx_year   : 16;  ///< 年（1970 ~ ）
+    x_uint32_t ctx_month  :  6;  ///< 月（1 ~ 12）
+    x_uint32_t ctx_day    :  6;  ///< 日（1 ~ 31）
+    x_uint32_t ctx_week   :  4;  ///< 周几（0 ~ 6）
+    x_uint32_t ctx_hour   :  6;  ///< 时（0 ~ 23）
+    x_uint32_t ctx_minute :  6;  ///< 分（0 ~ 59）
+    x_uint32_t ctx_second :  6;  ///< 秒（0 ~ 59）
+    x_uint32_t ctx_msec   : 14;  ///< 毫秒（0 ~ 999）
+    };
+} xtime_descr_t;
 
 /**********************************************************/
 /**
- * @brief 转换（以 100纳秒 为单位的）时间值（1970年1月1日到现在的时间）
- *        为具体的时间描述信息（即 x_ntp_time_context_t）。
- *
- * @param [in ] xut_time    : 时间值（1970年1月1日到现在的时间）。
- * @param [out] xtm_context : 操作成功返回的时间描述信息。
- *
- * @return x_bool_t
- *         - 成功，返回 X_TRUE；
- *         - 失败，返回 X_FALSE。
+ * @brief 将 时间计量值 转换为 时间描述信息。
+ * 
+ * @param [in ] xtm_unsec : 待转换的 时间计量值。
+ * 
+ * @return xtime_descr_t : 
+ * 返回 时间描述信息，可用 XTMDESCR_IS_VALID() 判断其是否为有效。
  */
-x_bool_t ntp_tmctxt_bv(x_uint64_t xut_time, x_ntp_time_context_t * xtm_context);
-```
-也可通过如下方式转换为 timeval 信息：
-```
-struct timeval tv;
-tv.tv_sec  = (long)((xut_timev / 10000000LL));
-tv.tv_usec = (long)((xut_timev % 10000000LL) / 10);
+xtime_descr_t time_utod(xtime_unsec_t xtm_unsec);
+
 ```
 
-## 源码下载
-至Github下载：[https://github.com/Gaaagaa/ntp_client](https://github.com/Gaaagaa/ntp_client "ntp_client")
-## 参看资料
+2. 需要重复发送请求 NTP，借此不断获得 NTP 时间戳，则可创建 `xntp_cliptr_t` 工作对象去实现该应用需求，具体可参考 `ntp_test.c` 源码的操作流程，这里就不再赘述。
+
+## 5. 源码下载
+
+在我的 Gitee 上下载：[https://gitee.com/Gaaagaa/ntp_client](https://gitee.com/Gaaagaa/ntp_client "ntp_client")
+
+## 6. 参看资料
+
 - NTP工作原理：[http://ntp.neu.edu.cn/archives/92](http://ntp.neu.edu.cn/archives/92)
 - NTP的报文格式：[http://ntp.neu.edu.cn/archives/95](http://ntp.neu.edu.cn/archives/95)

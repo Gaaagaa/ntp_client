@@ -19,11 +19,11 @@ if (WIN32)
 endif ()
 
 # ====================================================================
-# xntp_cli
+# ntp_cli
 
-add_executable(xntp_cli src/xtime.c src/ntp_client.c test/ntp_test.c)
+add_executable(ntp_cli src/xtime.c src/ntp_client.c test/ntp_test.c)
 if (WIN32)
-    target_link_libraries(xntp_cli ws2_32.lib kernel32.lib)
+    target_link_libraries(ntp_cli ws2_32.lib kernel32.lib)
 endif ()
 
 # ====================================================================
