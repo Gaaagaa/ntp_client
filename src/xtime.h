@@ -55,6 +55,7 @@ typedef x_uint64_t xtime_unsec_t;
 /**
  * @struct xtime_descr_t
  * @brief  时间描述信息的联合体类型（共计 64 位）。
+ * @note   该结构体用于描述 1970-01-01 00:00:00 往后的时间。
  */
 typedef union xtime_descr_t
 {
