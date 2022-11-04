@@ -19,6 +19,14 @@ if (WIN32)
 endif ()
 
 # ====================================================================
+# xtime
+
+add_executable(zeller src/xtime.c test/zeller_test.c)
+if (WIN32)
+    target_link_libraries(zeller kernel32.lib)
+endif ()
+
+# ====================================================================
 # ntp_cli
 
 add_executable(ntp_cli src/xtime.c src/ntp_client.c test/ntp_test.c)
