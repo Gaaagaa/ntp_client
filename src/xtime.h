@@ -50,7 +50,7 @@ extern "C" {
 // 
 
 /** 以 100纳秒 为单位，1970-01-01 00:00:00 至今的 时间计量值 类型 */
-typedef x_uint64_t xtime_unsec_t;
+typedef x_uint64_t xtime_vnsec_t;
 
 /**
  * @struct xtime_descr_t
@@ -76,13 +76,11 @@ typedef union xtime_descr_t
     };
 } xtime_descr_t;
 
-#define XTMDESCR_LEAP_YEAR(Y)       ((0 == (Y) % 400) || ((0 == (Y) % 4) && (0 != (Y) % 100)))
-
 /** 定义无效的 时间计量值 */
-#define XTIME_INVALID_UNSEC         ((xtime_unsec_t)~0ULL)
+#define XTIME_INVALID_VNSEC         ((xtime_vnsec_t)~0ULL)
 
 /** 判断 时间计量值 是否为 有效 */
-#define XTMUNSEC_IS_VALID(xunsec)   (XTIME_INVALID_UNSEC != (xunsec))
+#define XTMVNSEC_IS_VALID(xvnsec)   (XTIME_INVALID_VNSEC != (xvnsec))
 
 /** 判断 时间描述信息 是否为 有效 */
 #define XTMDESCR_IS_VALID(xdescr)   time_descr_valid(xdescr)
@@ -97,7 +95,7 @@ typedef union xtime_descr_t
 /**
  * @brief 获取当前系统的 时间计量值。
  */
-xtime_unsec_t time_unsec(void);
+xtime_vnsec_t time_vnsec(void);
 
 /**********************************************************/
 /**
@@ -111,21 +109,21 @@ xtime_descr_t time_descr(void);
  * 
  * @param [in ] xtm_descr : 待转换的 时间描述信息。
  * 
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断其是否为有效。
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断其是否为有效。
  */
-xtime_unsec_t time_dtou(xtime_descr_t xtm_descr);
+xtime_vnsec_t time_dtov(xtime_descr_t xtm_descr);
 
 /**********************************************************/
 /**
  * @brief 将 时间计量值 转换为 时间描述信息。
  * 
- * @param [in ] xtm_unsec : 待转换的 时间计量值。
+ * @param [in ] xtm_vnsec : 待转换的 时间计量值。
  * 
  * @return xtime_descr_t : 
  * 返回 时间描述信息，可用 XTMDESCR_IS_VALID() 判断其是否为有效。
  */
-xtime_descr_t time_utod(xtime_unsec_t xtm_unsec);
+xtime_descr_t time_vtod(xtime_vnsec_t xtm_vnsec);
 
 /**********************************************************/
 /**
@@ -137,7 +135,7 @@ x_bool_t time_descr_valid(xtime_descr_t xtm_descr);
 /**
  * @brief 依据 Zeller 公式，求取 具体日期（年、月、日） 对应的 星期几 。
  * @note
- * Zeller 公式：w = y + [ y / 4] + [ c / 4] - (2 * c) + [26 * (m + 1) / 10] + d - 1;
+ * Zeller 公式：w = y + [y / 4] + [c / 4] - (2 * c) + [26 * (m + 1) / 10] + d - 1;
  * 该公式只适合于 1582年10月15日 之后的情形，公式中的符号含义如下：
  *  w：星期 w 对7取模得：0-星期日，1-星期一，2-星期二，3-星期三，4-星期四，5-星期五，6-星期六；
  *  c：世纪数 - 1（四位数年份的前两位数）；

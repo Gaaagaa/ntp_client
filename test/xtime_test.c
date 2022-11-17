@@ -37,16 +37,16 @@
 
 int main(int argc, char * argv[])
 {
-    xtime_unsec_t xtm_unsec = time_unsec();
+    xtime_vnsec_t xtm_vnsec = time_vnsec();
     xtime_descr_t xtm_descr = time_descr();
-    xtime_unsec_t xtm_ucnvt = time_dtou(xtm_descr);
-    xtime_descr_t xtm_dcnvt = time_utod(xtm_unsec);
+    xtime_vnsec_t xtm_ucnvt = time_dtov(xtm_descr);
+    xtime_descr_t xtm_dcnvt = time_vtod(xtm_vnsec);
 
-    printf("sizeof(xtime_unsec_t) = %d\n", (x_int32_t)sizeof(xtime_unsec_t));
+    printf("sizeof(xtime_vnsec_t) = %d\n", (x_int32_t)sizeof(xtime_vnsec_t));
     printf("sizeof(xtime_descr_t) = %d\n", (x_int32_t)sizeof(xtime_descr_t));
 
     printf("[%llu, 0x%016llX] %04d-%02d-%02d %d %02d:%02d:%02d.%03d\n",
-           xtm_unsec,
+           xtm_vnsec,
            xtm_descr.ctx_value,
            xtm_descr.ctx_year,
            xtm_descr.ctx_month,
@@ -58,10 +58,10 @@ int main(int argc, char * argv[])
            xtm_descr.ctx_msec);
 
     printf("DTOU: 0x%016llX - 0x%016llX = %llu\n",
-           xtm_unsec, xtm_ucnvt, xtm_unsec - xtm_ucnvt);
+           xtm_vnsec, xtm_ucnvt, xtm_vnsec - xtm_ucnvt);
 
     printf("UTOD: [0x%016llX] %04d-%02d-%02d %d %02d:%02d:%02d.%03d\n",
-           xtm_unsec,
+           xtm_vnsec,
            xtm_dcnvt.ctx_year,
            xtm_dcnvt.ctx_month,
            xtm_dcnvt.ctx_day,

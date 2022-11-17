@@ -57,7 +57,7 @@
 // 
 
 /** 1601 ~ 1970 年之间的时间 百纳秒数 */
-#define XTIME_UNSEC_1601_1970 116444736000000000LL
+#define XTIME_VNSEC_1601_1970 116444736000000000LL
 
 //====================================================================
 
@@ -76,9 +76,9 @@
 /**
  * @brief 获取当前系统的 时间计量值。
  */
-xtime_unsec_t time_unsec(void)
+xtime_vnsec_t time_vnsec(void)
 {
-    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
+    xtime_vnsec_t xtm_vnsec = XTIME_INVALID_VNSEC;
 
 #if (defined(_WIN32) || defined(_WIN64))
 
@@ -89,20 +89,20 @@ xtime_unsec_t time_unsec(void)
     xtm_value.LowPart  = xtm_sfile.dwLowDateTime;
     xtm_value.HighPart = xtm_sfile.dwHighDateTime;
 
-    xtm_unsec = (xtime_unsec_t)(xtm_value.QuadPart - XTIME_UNSEC_1601_1970);
+    xtm_vnsec = (xtime_vnsec_t)(xtm_value.QuadPart - XTIME_VNSEC_1601_1970);
 
 #elif (defined(__linux__) || defined(__unix__))
 
     struct timeval xtm_value;
     gettimeofday(&xtm_value, X_NULL);
 
-    xtm_unsec = (xtime_unsec_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
+    xtm_vnsec = (xtime_vnsec_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
 
 #else // UNKNOW
 #error "unknow platform!"
 #endif // PLATFORM
 
-    return xtm_unsec;
+    return xtm_vnsec;
 }
 
 /**********************************************************/
@@ -161,12 +161,12 @@ xtime_descr_t time_descr(void)
  * 
  * @param [in ] xtm_descr : 待转换的 时间描述信息。
  * 
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断其是否为有效。
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断其是否为有效。
  */
-xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
+xtime_vnsec_t time_dtov(xtime_descr_t xtm_descr)
 {
-    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
+    xtime_vnsec_t xtm_vnsec = XTIME_INVALID_VNSEC;
 
 #if 0
     if ((xtm_descr.ctx_year   < 1970) ||
@@ -177,7 +177,7 @@ xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
         (xtm_descr.ctx_second >   59) ||
         (xtm_descr.ctx_msec   >  999))
     {
-        return XTIME_INVALID_UNSEC;
+        return XTIME_INVALID_VNSEC;
     }
 #endif
 
@@ -204,7 +204,7 @@ xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
             xtm_value.LowPart  = xtm_sfile.dwLowDateTime ;
             xtm_value.HighPart = xtm_sfile.dwHighDateTime;
 
-            xtm_unsec = (xtime_unsec_t)(xtm_value.QuadPart - XTIME_UNSEC_1601_1970);
+            xtm_vnsec = (xtime_vnsec_t)(xtm_value.QuadPart - XTIME_VNSEC_1601_1970);
         }
     }
 
@@ -227,26 +227,26 @@ xtime_unsec_t time_dtou(xtime_descr_t xtm_descr)
     xtm_value.tv_usec = xtm_descr.ctx_msec * 1000;
     if (-1 != xtm_value.tv_sec)
     {
-        xtm_unsec = (xtime_unsec_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
+        xtm_vnsec = (xtime_vnsec_t)(xtm_value.tv_sec * 10000000ULL + xtm_value.tv_usec * 10ULL);
     }
 
 #else // UNKNOW
 #error "unknow platform!"
 #endif // PLATFORM
 
-    return xtm_unsec;
+    return xtm_vnsec;
 }
 
 /**********************************************************/
 /**
  * @brief 将 时间计量值 转换为 时间描述信息。
  * 
- * @param [in ] xtm_unsec : 待转换的 时间计量值。
+ * @param [in ] xtm_vnsec : 待转换的 时间计量值。
  * 
  * @return xtime_descr_t : 
  * 返回 时间描述信息，可用 XTMDESCR_IS_VALID() 判断其是否为有效。
  */
-xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
+xtime_descr_t time_vtod(xtime_vnsec_t xtm_vnsec)
 {
     xtime_descr_t xtm_descr = { 0 };
 
@@ -257,7 +257,7 @@ xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
     FILETIME       xtm_lfile;
     SYSTEMTIME     xtm_local;
 
-    xtm_value.QuadPart       = xtm_unsec + XTIME_UNSEC_1601_1970;
+    xtm_value.QuadPart       = xtm_vnsec + XTIME_VNSEC_1601_1970;
     xtm_sfile.dwLowDateTime  = xtm_value.LowPart;
     xtm_sfile.dwHighDateTime = xtm_value.HighPart;
     if (FileTimeToLocalFileTime(&xtm_sfile, &xtm_lfile))
@@ -278,7 +278,7 @@ xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
 #elif (defined(__linux__) || defined(__unix__))
 
     struct tm xtm_local;
-    time_t xtm_time = (time_t)(xtm_unsec / 10000000ULL);
+    time_t xtm_time = (time_t)(xtm_vnsec / 10000000ULL);
     localtime_r(&xtm_time, &xtm_local);
 
     xtm_descr.ctx_year   = xtm_local.tm_year + 1900;
@@ -288,7 +288,7 @@ xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)
     xtm_descr.ctx_hour   = xtm_local.tm_hour       ;
     xtm_descr.ctx_minute = xtm_local.tm_min        ;
     xtm_descr.ctx_second = xtm_local.tm_sec        ;
-    xtm_descr.ctx_msec   = (x_uint32_t)((xtm_unsec % 10000000ULL) / 10000L);
+    xtm_descr.ctx_msec   = (x_uint32_t)((xtm_vnsec % 10000000ULL) / 10000L);
 
 #else // UNKNOW
 #error "unknow platform!"
@@ -362,7 +362,7 @@ x_bool_t time_descr_valid(xtime_descr_t xtm_descr)
 /**
  * @brief 依据 Zeller 公式，求取 具体日期（年、月、日） 对应的 星期几 。
  * @note
- * Zeller 公式：w = y + [ y / 4] + [ c / 4] - (2 * c) + [26 * (m + 1) / 10] + d - 1;
+ * Zeller 公式：w = y + [y / 4] + [c / 4] - (2 * c) + [26 * (m + 1) / 10] + d - 1;
  * 该公式只适合于 1582年10月15日 之后的情形，公式中的符号含义如下：
  *  w：星期 w 对7取模得：0-星期日，1-星期一，2-星期二，3-星期三，4-星期四，5-星期五，6-星期六；
  *  c：世纪数 - 1（四位数年份的前两位数）；

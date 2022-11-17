@@ -96,11 +96,11 @@ x_int32_t ntpcli_config(
  * @param [in ] xntp_this : NTP 客户端工作对象。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  * 
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
-xtime_unsec_t ntpcli_req_time(
+xtime_vnsec_t ntpcli_req_time(
                 xntp_cliptr_t xntp_this,
                 x_uint32_t xut_tmout);
 
@@ -118,11 +118,11 @@ xtime_unsec_t ntpcli_req_time(
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  *
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
-xtime_unsec_t ntpcli_get_time(
+xtime_vnsec_t ntpcli_get_time(
                     x_cstring_t xszt_host,
                     x_uint16_t xut_port,
                     x_uint32_t xut_tmout);

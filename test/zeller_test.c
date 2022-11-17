@@ -39,7 +39,7 @@
 
 int main(int argc, char * argv[])
 {
-    xtime_unsec_t xtm_unsec = 0ULL;
+    xtime_vnsec_t xtm_vnsec = 0ULL;
     xtime_descr_t xtm_descr = { 0ULL };
 
     x_uint32_t xut_iter = 0;
@@ -48,13 +48,13 @@ int main(int argc, char * argv[])
 
     for (; xut_iter < 365000U; ++xut_iter)
     {
-        xtm_descr = time_utod(xtm_unsec);
+        xtm_descr = time_vtod(xtm_vnsec);
         xut_week  = time_week(xtm_descr.ctx_year, xtm_descr.ctx_month, xtm_descr.ctx_day);
 
         if (xut_week != xtm_descr.ctx_week)
         {
             printf("[ 0x%016llX ] [ %04d-%02d-%02d %d %02d:%02d:%02d.%03d ] != week[ %u ]\n",
-                   xtm_unsec           ,
+                   xtm_vnsec           ,
                    xtm_descr.ctx_year  ,
                    xtm_descr.ctx_month ,
                    xtm_descr.ctx_day   ,
@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
             xut_nerr += 1;
         }
 
-        xtm_unsec += XTIME_DAY_STEP;
+        xtm_vnsec += XTIME_DAY_STEP;
     }
 
     printf("xut_nerr = %u\n", xut_nerr);

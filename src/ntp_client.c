@@ -93,22 +93,22 @@ typedef struct xtime_stamp_t
 #define XTIME_100NS_BASE    10000000ULL
 
 /** 将 时间计量值 转为 NTP 时间戳 */
-#define XTIME_UTOS(xunsec, xstamp)                                                                  \
+#define XTIME_UTOS(xvnsec, xstamp)                                                                  \
 do                                                                                                  \
 {                                                                                                   \
-    (xstamp).xut_seconds  = (x_uint32_t)((((xunsec) / XTIME_100NS_BASE) + XTIME_SEC_1900_1970));    \
-    (xstamp).xut_fraction = (x_uint32_t)((((xunsec) % XTIME_100NS_BASE) << 32) / XTIME_100NS_BASE); \
+    (xstamp).xut_seconds  = (x_uint32_t)((((xvnsec) / XTIME_100NS_BASE) + XTIME_SEC_1900_1970));    \
+    (xstamp).xut_fraction = (x_uint32_t)((((xvnsec) % XTIME_100NS_BASE) << 32) / XTIME_100NS_BASE); \
 } while (0)
 
 /** 将 NTP 时间戳 转为 时间计量值 */
-#define XTIME_STOU(xstamp, xunsec)                                                     \
+#define XTIME_STOU(xstamp, xvnsec)                                                     \
 do                                                                                     \
 {                                                                                      \
     if (((xstamp).xut_seconds) > XTIME_SEC_1900_1970)                                  \
-        (xunsec) = (((xstamp).xut_seconds - XTIME_SEC_1900_1970) * XTIME_100NS_BASE) + \
+        (xvnsec) = (((xstamp).xut_seconds - XTIME_SEC_1900_1970) * XTIME_100NS_BASE) + \
                     (((xstamp).xut_fraction * XTIME_100NS_BASE) >> 32);                \
     else                                                                               \
-        (xunsec) = XTIME_INVALID_UNSEC;                                                \
+        (xvnsec) = XTIME_INVALID_VNSEC;                                                \
 } while (0)
 
 /**
@@ -220,9 +220,9 @@ typedef struct xntp_pack_t
 /**
  * @brief 输出 100ns 为单位 的 具体时间信息。
  */
-static x_void_t output_ns(xtime_unsec_t xtm_unsec)
+static x_void_t output_ns(xtime_vnsec_t xtm_vnsec)
 {
-    xtime_descr_t xtm_descr = time_utod(xtm_unsec);
+    xtime_descr_t xtm_descr = time_vtod(xtm_vnsec);
     printf("[%04d-%02d-%02d %d %02d:%02d:%02d.%03d]",
            xtm_descr.ctx_year  ,
            xtm_descr.ctx_month ,
@@ -240,19 +240,19 @@ static x_void_t output_ns(xtime_unsec_t xtm_unsec)
  */
 static x_void_t output_ts(xtime_stamp_t * xtm_stamp)
 {
-    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
-    XTIME_STOU(*xtm_stamp, xtm_unsec);
-    output_ns(xtm_unsec);
+    xtime_vnsec_t xtm_vnsec = XTIME_INVALID_VNSEC;
+    XTIME_STOU(*xtm_stamp, xtm_vnsec);
+    output_ns(xtm_vnsec);
 }
 
 /**********************************************************/
 /**
  * @brief 打上信息标号，输出 100ns 为单位 的 具体时间信息。
  */
-static x_void_t output_tu(x_cstring_t xszt_info, xtime_unsec_t xtm_unsec)
+static x_void_t output_tu(x_cstring_t xszt_info, xtime_vnsec_t xtm_vnsec)
 {
     printf("%s : ", xszt_info);
-    output_ns(xtm_unsec);
+    output_ns(xtm_vnsec);
     printf("\n");
 }
 
@@ -547,13 +547,13 @@ static x_void_t ntp_hton_packet(xntp_pack_t * xnpt_nptr)
  * T3，服务端发送应答数据包时的 本地系统时间戳；
  * T4，客户端接收到服务端应答数据包时的 本地系统时间戳。
  */
-static xtime_unsec_t ntp_calc_4T(xtime_unsec_t xtm_4time[4])
+static xtime_vnsec_t ntp_calc_4T(xtime_vnsec_t xtm_4time[4])
 {
     x_int64_t xtm_T21 = ((x_int64_t)xtm_4time[1]) - ((x_int64_t)xtm_4time[0]);
     x_int64_t xtm_T34 = ((x_int64_t)xtm_4time[2]) - ((x_int64_t)xtm_4time[3]);
     x_int64_t xtm_TXX = ((x_int64_t)xtm_4time[3]) + ((xtm_T21 + xtm_T34) / 2);
 
-    return (xtime_unsec_t)xtm_TXX;
+    return (xtime_vnsec_t)xtm_TXX;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -571,7 +571,7 @@ typedef struct xntp_client_t
     x_sockfd_t    xfdt_sockfd;              ///< 网络通信使用的 套接字
     x_char_t      xszt_host[TEXT_LEN_256];  ///< 存储提供 NTP 服务的 服务端 地址
     x_uint16_t    xut_port;                 ///< 存储提供 NTP 服务的 服务端 端口号
-    xtime_unsec_t xtm_4time[4];             ///< 完成 NTP 请求后，所得到的 4 个相关时间戳
+    xtime_vnsec_t xtm_4time[4];             ///< 完成 NTP 请求后，所得到的 4 个相关时间戳
 } xntp_client_t;
 
 /**********************************************************/
@@ -613,10 +613,10 @@ static x_int32_t ntpcli_get_4T(
             break;
         }
 
-        xntp_this->xtm_4time[0] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[1] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[2] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[3] = XTIME_INVALID_UNSEC;
+        xntp_this->xtm_4time[0] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[1] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[2] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[3] = XTIME_INVALID_VNSEC;
 
         //======================================
 
@@ -632,7 +632,7 @@ static x_int32_t ntpcli_get_4T(
         ntp_init_req_packet(&xnpt_pack);
 
         // T1
-        xntp_this->xtm_4time[0] = time_unsec();
+        xntp_this->xtm_4time[0] = time_vnsec();
 
         // NTP请求报文离开发送端时发送端的本地时间
         XTIME_UTOS(xntp_this->xtm_4time[0], xnpt_pack.xtms_transmit);
@@ -707,7 +707,7 @@ static x_int32_t ntpcli_get_4T(
                         (struct sockaddr *)&xin_addr,
                         (socklen_t *)&xit_alen);
         // T4
-        xntp_this->xtm_4time[3] = time_unsec();
+        xntp_this->xtm_4time[3] = time_vnsec();
 
         if (xit_errno < 0)
         {
@@ -728,8 +728,8 @@ static x_int32_t ntpcli_get_4T(
         XTIME_STOU(xnpt_pack.xtms_receive , xntp_this->xtm_4time[1]); // T2
         XTIME_STOU(xnpt_pack.xtms_transmit, xntp_this->xtm_4time[2]); // T3
 
-        if (!XTMUNSEC_IS_VALID(xntp_this->xtm_4time[1]) ||
-            !XTMUNSEC_IS_VALID(xntp_this->xtm_4time[2]))
+        if (!XTMVNSEC_IS_VALID(xntp_this->xtm_4time[1]) ||
+            !XTMVNSEC_IS_VALID(xntp_this->xtm_4time[2]))
         {
             xit_errno = ETIME;
             break;
@@ -885,10 +885,10 @@ xntp_cliptr_t ntpcli_open(void)
         memset(xntp_this->xszt_host, 0, TEXT_LEN_256);
         xntp_this->xut_port = NTP_PORT;
 
-        xntp_this->xtm_4time[0] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[1] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[2] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[3] = XTIME_INVALID_UNSEC;
+        xntp_this->xtm_4time[0] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[1] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[2] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[3] = XTIME_INVALID_VNSEC;
 
         //======================================
         xit_errno = 0;
@@ -964,11 +964,11 @@ x_int32_t ntpcli_config(
  * @param [in ] xntp_this : NTP 客户端工作对象。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  * 
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
-xtime_unsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
+xtime_vnsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
 {
     x_int32_t xit_errno = EPERM;
 
@@ -978,7 +978,7 @@ xtime_unsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
     if (X_NULL == xntp_this)
     {
         errno = EINVAL;
-        return XTIME_INVALID_UNSEC;
+        return XTIME_INVALID_VNSEC;
     }
 
     //======================================
@@ -991,7 +991,7 @@ xtime_unsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
     if (0 != xit_errno)
     {
         errno = xit_errno;
-        return XTIME_INVALID_UNSEC;
+        return XTIME_INVALID_VNSEC;
     }
 
     //======================================
@@ -1015,17 +1015,17 @@ xtime_unsec_t ntpcli_req_time(xntp_cliptr_t xntp_this, x_uint32_t xut_tmout)
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  *
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
-xtime_unsec_t ntpcli_get_time(
+xtime_vnsec_t ntpcli_get_time(
                     x_cstring_t xszt_host,
                     x_uint16_t xut_port,
                     x_uint32_t xut_tmout)
 {
     x_int32_t     xit_errno = EPERM;
-    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
+    xtime_vnsec_t xtm_vnsec = XTIME_INVALID_VNSEC;
     xntp_cliptr_t xntp_this = X_NULL;
 
     //======================================
@@ -1045,7 +1045,7 @@ xtime_unsec_t ntpcli_get_time(
             break;
         }
 
-        xtm_unsec = ntpcli_req_time(xntp_this, xut_tmout);
+        xtm_vnsec = ntpcli_req_time(xntp_this, xut_tmout);
     } while (0);
 
     if (X_NULL != xntp_this)
@@ -1056,7 +1056,7 @@ xtime_unsec_t ntpcli_get_time(
 
     //======================================
 
-    return xtm_unsec;
+    return xtm_vnsec;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

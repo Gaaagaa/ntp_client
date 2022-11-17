@@ -160,7 +160,7 @@ typedef struct xntp_client_t
     x_sockfd_t    xfdt_sockfd;              ///< 网络通信使用的 套接字
     x_char_t      xszt_host[TEXT_LEN_256];  ///< 存储提供 NTP 服务的 服务端 地址
     x_uint16_t    xut_port;                 ///< 存储提供 NTP 服务的 服务端 端口号
-    xtime_unsec_t xtm_4time[4];             ///< 完成 NTP 请求后，所得到的 4 个相关时间戳
+    xtime_vnsec_t xtm_4time[4];             ///< 完成 NTP 请求后，所得到的 4 个相关时间戳
 } xntp_client_t;
 
 ```
@@ -208,10 +208,10 @@ static x_int32_t ntpcli_get_4T(
             break;
         }
 
-        xntp_this->xtm_4time[0] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[1] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[2] = XTIME_INVALID_UNSEC;
-        xntp_this->xtm_4time[3] = XTIME_INVALID_UNSEC;
+        xntp_this->xtm_4time[0] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[1] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[2] = XTIME_INVALID_VNSEC;
+        xntp_this->xtm_4time[3] = XTIME_INVALID_VNSEC;
 
         //======================================
 
@@ -227,7 +227,7 @@ static x_int32_t ntpcli_get_4T(
         ntp_init_req_packet(&xnpt_pack);
 
         // T1
-        xntp_this->xtm_4time[0] = time_unsec();
+        xntp_this->xtm_4time[0] = time_vnsec();
 
         // NTP请求报文离开发送端时发送端的本地时间
         XTIME_UTOS(xntp_this->xtm_4time[0], xnpt_pack.xtms_transmit);
@@ -302,7 +302,7 @@ static x_int32_t ntpcli_get_4T(
                         (struct sockaddr *)&xin_addr,
                         (socklen_t *)&xit_alen);
         // T4
-        xntp_this->xtm_4time[3] = time_unsec();
+        xntp_this->xtm_4time[3] = time_vnsec();
 
         if (xit_errno < 0)
         {
@@ -323,8 +323,8 @@ static x_int32_t ntpcli_get_4T(
         XTIME_STOU(xnpt_pack.xtms_receive , xntp_this->xtm_4time[1]); // T2
         XTIME_STOU(xnpt_pack.xtms_transmit, xntp_this->xtm_4time[2]); // T3
 
-        if (!XTMUNSEC_IS_VALID(xntp_this->xtm_4time[1]) ||
-            !XTMUNSEC_IS_VALID(xntp_this->xtm_4time[2]))
+        if (!XTMVNSEC_IS_VALID(xntp_this->xtm_4time[1]) ||
+            !XTMVNSEC_IS_VALID(xntp_this->xtm_4time[2]))
         {
             xit_errno = ETIME;
             break;
@@ -373,24 +373,24 @@ static x_int32_t ntpcli_get_4T(
  * @param [in ] xut_port  : NTP 服务器的 端口号（可取默认的端口号 NTP_PORT : 123）。
  * @param [in ] xut_tmout : 网络请求的超时时间（单位为毫秒）。
  *
- * @return xtime_unsec_t : 
- * 返回 时间计量值，可用 XTMUNSEC_IS_VALID() 判断是否为有效值；
+ * @return xtime_vnsec_t : 
+ * 返回 时间计量值，可用 XTMVNSEC_IS_VALID() 判断是否为有效值；
  * 若值无效，则可通过 errno 获知错误码。
  */
-xtime_unsec_t ntpcli_get_time(
+xtime_vnsec_t ntpcli_get_time(
                     x_cstring_t xszt_host,
                     x_uint16_t xut_port,
                     x_uint32_t xut_tmout);
 
 ```
 
-其中，返回的时间戳值 `xtime_unsec_t` 由计算公式 `T = T4 + ((T2 - T1) + (T3 - T4)) / 2;` 所得。若要将该时间戳值转换为其他易描述（或实际应用）的数据信息，可调用 `xtime.h` 头文件种所声明的接口 `xtime_descr_t time_utod(xtime_unsec_t xtm_unsec)` 实现，`xtime_descr_t` 数据类型的详细说明，参考 `xtime.h` 中所列代码：
+其中，返回的时间戳值 `xtime_vnsec_t` 由计算公式 `T = T4 + ((T2 - T1) + (T3 - T4)) / 2;` 所得。若要将该时间戳值转换为其他易描述（或实际应用）的数据信息，可调用 `xtime.h` 头文件种所声明的接口 `xtime_descr_t time_vtod(xtime_vnsec_t xtm_vnsec)` 实现，`xtime_descr_t` 数据类型的详细说明，参考 `xtime.h` 中所列代码：
 
 ```c++
 // xtime.h
 
 /** 以 100纳秒 为单位，1970-01-01 00:00:00 至今的 时间计量值 类型 */
-typedef x_uint64_t xtime_unsec_t;
+typedef x_uint64_t xtime_vnsec_t;
 
 /**
  * @struct xtime_descr_t
@@ -420,12 +420,12 @@ typedef union xtime_descr_t
 /**
  * @brief 将 时间计量值 转换为 时间描述信息。
  * 
- * @param [in ] xtm_unsec : 待转换的 时间计量值。
+ * @param [in ] xtm_vnsec : 待转换的 时间计量值。
  * 
  * @return xtime_descr_t : 
  * 返回 时间描述信息，可用 XTMDESCR_IS_VALID() 判断其是否为有效。
  */
-xtime_descr_t time_utod(xtime_unsec_t xtm_unsec);
+xtime_descr_t time_vtod(xtime_vnsec_t xtm_vnsec);
 
 ```
 

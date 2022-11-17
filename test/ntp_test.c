@@ -190,8 +190,8 @@ int main(int argc, char * argv[])
     x_int32_t     xit_iter  = 0;
     xntp_cliptr_t xntp_this = X_NULL;
 
-    xtime_unsec_t xtm_unsec = XTIME_INVALID_UNSEC;
-    xtime_unsec_t xtm_ltime = XTIME_INVALID_UNSEC;
+    xtime_vnsec_t xtm_vnsec = XTIME_INVALID_VNSEC;
+    xtime_vnsec_t xtm_ltime = XTIME_INVALID_VNSEC;
     xtime_descr_t xtm_descr = { 0 };
     xtime_descr_t xtm_local = { 0 };
 
@@ -231,12 +231,12 @@ int main(int argc, char * argv[])
 
         for (xit_iter = 0; xit_iter < xopt_args.xit_rept; ++xit_iter)
         {
-            xtm_unsec = ntpcli_req_time(xntp_this, xopt_args.xut_tmout);
-            if (XTMUNSEC_IS_VALID(xtm_unsec))
+            xtm_vnsec = ntpcli_req_time(xntp_this, xopt_args.xut_tmout);
+            if (XTMVNSEC_IS_VALID(xtm_vnsec))
             {
-                xtm_ltime = time_unsec();
-                xtm_descr = time_utod(xtm_unsec);
-                xtm_local = time_utod(xtm_ltime);
+                xtm_ltime = time_vnsec();
+                xtm_descr = time_vtod(xtm_vnsec);
+                xtm_local = time_vtod(xtm_ltime);
 
                 printf("\n[%d] %s:%d : \n",
                        xit_iter + 1,
@@ -263,7 +263,7 @@ int main(int argc, char * argv[])
                        xtm_local.ctx_msec  );
 
                 printf("\tDeviation    : %lld us\n",
-                       ((x_int64_t)(xtm_ltime - xtm_unsec)) / 10LL);
+                       ((x_int64_t)(xtm_ltime - xtm_vnsec)) / 10LL);
             }
             else
             {
