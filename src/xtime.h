@@ -71,7 +71,7 @@ typedef union xtime_descr_t
     x_uint32_t ctx_week   :  4;  ///< 周几（0 ~ 6）
     x_uint32_t ctx_hour   :  6;  ///< 时（0 ~ 23）
     x_uint32_t ctx_minute :  6;  ///< 分（0 ~ 59）
-    x_uint32_t ctx_second :  6;  ///< 秒（0 ~ 59）
+    x_uint32_t ctx_second :  6;  ///< 秒（0 ~ 60），上限定为 60 而不是 59，主要考虑 闰秒 的存在
     x_uint32_t ctx_msec   : 14;  ///< 毫秒（0 ~ 999）
     };
 } xtime_descr_t;

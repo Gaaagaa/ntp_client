@@ -174,7 +174,7 @@ xtime_vnsec_t time_dtov(xtime_descr_t xtm_descr)
         (xtm_descr.ctx_day    <    1) || (xtm_descr.ctx_day   > 31) ||
         (xtm_descr.ctx_hour   >   23) ||
         (xtm_descr.ctx_minute >   59) ||
-        (xtm_descr.ctx_second >   59) ||
+        (xtm_descr.ctx_second >   60) ||
         (xtm_descr.ctx_msec   >  999))
     {
         return XTIME_INVALID_VNSEC;
@@ -313,7 +313,7 @@ x_bool_t time_descr_valid(xtime_descr_t xtm_descr)
             (xtm_descr.ctx_week   >    6) ||
             (xtm_descr.ctx_hour   >   23) ||
             (xtm_descr.ctx_minute >   59) ||
-            (xtm_descr.ctx_second >   59) ||
+            (xtm_descr.ctx_second >   60) ||
             (xtm_descr.ctx_msec   >  999))
         {
             xbt_valid = X_FALSE;
