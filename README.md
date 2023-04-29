@@ -2,4 +2,5 @@
 
 使用NTP协议获取网络时间戳。
 
-这是https://github.com/Gaaagaa/ntp_client库的一个事例
+https://github.com/Gaaagaa/ntp_client
+这是一个该库的事例
