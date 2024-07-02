@@ -85,7 +85,7 @@ typedef x_uint32_t             x_size_t;
 #ifdef __linux__
 typedef x_int32_t              x_sockfd_t;
 #else // !__linux__
-typedef x_size_t               x_sockfd_t;
+typedef x_ssize_t              x_sockfd_t;
 #endif // __linux__
 
 //======================================
